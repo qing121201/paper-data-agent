@@ -1,0 +1,14 @@
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+libraries/*
+!libraries/README.md
+config/ui.json
+output/
+tmp/
+科研实践报告/
+task_plan.md
+progress.md
+findings.md

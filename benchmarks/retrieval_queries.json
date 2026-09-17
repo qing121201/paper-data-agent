@@ -1,0 +1,13 @@
+[
+  {"query": "automatic code review benchmark repository context", "gold_title_contains": ["AACR-Bench", "Code Review Agent Benchmark", "CodeFuse-CR-Bench", "SWR-Bench"]},
+  {"query": "continuous long horizon software evolution benchmark", "gold_title_contains": ["SWE-EVO", "EvoClaw", "SWE-CI"]},
+  {"query": "generate a complete repository from scratch", "gold_title_contains": ["COMMIT0", "NL2Repo-Bench", "RPG"]},
+  {"query": "agent computer interface commands edit files", "gold_title_contains": ["SWE-agent"]},
+  {"query": "multi agent collaboration for software development", "gold_title_contains": ["ChatDev", "METAGPT"]},
+  {"query": "repository level code completion cross file context", "gold_title_contains": ["RepoCoder", "RepoFusion"]},
+  {"query": "language agent self reflection iterative refinement", "gold_title_contains": ["Reflexion", "SELF-REFINE"]},
+  {"query": "interactive coding with execution feedback", "gold_title_contains": ["InterCode", "Executable Code Actions"]},
+  {"query": "automated environment setup benchmark", "gold_title_contains": ["ENVBENCH"]},
+  {"query": "software repair without complex autonomous agent framework", "gold_title_contains": ["AGENTLESS"]}
+]
+
