@@ -28,6 +28,8 @@
 
 `.git/` 是 Git 自己维护的版本历史和索引数据库，不是 Agent 功能代码。不要手动编辑或删除其中的文件；日常通过 `git status`、`git log`、`git commit` 操作。
 
+每个真实论文库可以包含 `index.vectors.npz`（压缩向量）和 `index.vectors.json`（模型名、维度、chunk 指纹）。二者可重新生成，不提交到 GitHub。
+
 ## Benchmark 到底测什么
 
 `benchmarks/retrieval_queries.json` 的每条记录包含一个查询和若干 `gold_title_contains` 标题片段。例如查询 “Agent Computer Interface、编辑文件命令” 时，把标题含 “SWE-agent” 的论文标作合理命中。评测只检查返回标题是否包含这些人工标注片段，并计算 Hit@1、Hit@K 和 MRR。

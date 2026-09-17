@@ -8,7 +8,9 @@
 python -m pip install -r requirements.txt
 ```
 
-主要依赖：pypdf/PyMuPDF 读取 PDF，pandas 与 matplotlib 生成科研图，Playwright 渲染思维导图。Tkinter 随常见 Windows Python 安装提供，不由 pip 安装。
+主要依赖：pypdf/PyMuPDF 读取 PDF，pandas 与 matplotlib 生成科研图，Playwright 渲染思维导图，Sentence Transformers 运行本地 Embedding。Tkinter 随常见 Windows Python 安装提供，不由 pip 安装。
+
+首次点击“建立/更新向量索引”会从 Hugging Face 下载 `intfloat/multilingual-e5-small`，权重约 471 MB。模型下载完成后可离线编码；每个论文库的 `index.vectors.npz/json` 会随论文内容指纹自动判断是否过期。
 
 若 Playwright 没有可用浏览器，可运行：
 

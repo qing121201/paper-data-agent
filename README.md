@@ -7,7 +7,7 @@
 - 新建、打开和切换多个独立论文库。
 - 通过粘贴路径或 Windows 文件夹选择器递归导入本地 PDF。
 - 读取公开 PDF 直链或论文网页，自动发现 PDF、下载、缓存和去重。
-- 按页分块并建立 BM25 全文索引。
+- 按页分块建立 BM25 全文索引；可选下载公开多语言 Embedding 模型，建立本地向量 sidecar 并进行混合检索。
 - 通过统一工具注册表调用检索、全文阅读、联网导入、写作审查和文件生成工具。
 - 返回论文标题、绝对路径、页码、相关性分数和证据原文。
 - 使用标注查询比较文件名匹配基线与全文 BM25 检索。
@@ -42,7 +42,19 @@
 
 例如可以直接问：`这个论文库主要在讲什么？`、`精读 SWE-agent 并整理证据卡`、`基于当前论文库帮我写相关工作`、`在线查找 SWE-agent 的后续研究`、`在线搜索虚拟细胞相关论文并直接加入论文库`、`把当前论文脉络做成思维导图`。Agent 会自行选择检索、全库分析、在线搜索、公开 PDF 导入、科研绘图、PPT 或思维导图工具，并搭配一个科研 Skill，再执行并显示行动记录。空论文库也可以先在“与 Agent 对话”中使用“搜索并导入”场景。
 
-每个论文库的数据结构和代码职责见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。本地论文不会复制；网页论文会缓存在对应论文库的 `downloaded_papers` 中。向量检索、REST、云同步和微调等尚未实现的选项见 [docs/ARCHITECTURE_OPTIONS.md](docs/ARCHITECTURE_OPTIONS.md)，不要把路线图当作现有能力。
+每个论文库的数据结构和代码职责见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。本地论文不会复制；网页论文会缓存在对应论文库的 `downloaded_papers` 中。本地向量混合检索已经可用；REST、云同步和微调等尚未实现的选项见 [docs/ARCHITECTURE_OPTIONS.md](docs/ARCHITECTURE_OPTIONS.md)，不要把路线图当作现有能力。
+
+### 本地向量检索
+
+在“论文导入”页点击“建立/更新向量索引”。首次使用会下载公开的 `intfloat/multilingual-e5-small`（模型权重约 471 MB），之后在本机生成 384 维向量。向量文件保存在当前论文库旁边，不进入 Git；检索自动使用 BM25 与向量倒数排名融合。论文发生增删后，界面会显示“向量需更新”，更新前自动回退纯 BM25。
+
+也可以用命令行建立：
+
+```powershell
+python -m paper_data_agent.cli vectors --index "libraries\论文库名\index.json"
+```
+
+Embedding 过程在本机执行，不会因为建立向量而把论文发送给 Hugging Face；只有首次下载模型文件需要联网。
 
 ### 模型服务与皮肤
 
@@ -141,7 +153,7 @@ python -m paper_data_agent.cli agent `
 
 Skill 是一套“怎么做”的科研工作流说明，例如证据卡应该有哪些字段、审稿时应检查哪些风险、实验包怎样组织。工具是“真的去执行”的程序接口，例如检索 OpenAlex、读取本地索引、把 CSV 绘成 PNG/PDF、调用 PowerPoint 生成 PPTX。Agent 先用 LLM 判断任务，再选 Skill 规定方法、选工具完成动作；只有 Skill 而没有适配器时，模型只能给建议，不能产出真实文件。
 
-当前动作包括：`clarify`（先讨论并等待确认）、`search_papers`、`build_brief`、`survey_corpus`、`read_pages`、`read_full_papers`、`online_search`、`search_and_import`、`create_scientific_figure`、`create_presentation`、`create_mindmap`、`apply_skill`、`finish` 和 `none`。其中 `apply_skill` 会用指定 Skill 分析已有证据或审查上一份草稿；`search_and_import` 会检索 OpenAlex 并尝试把可公开下载的论文加入当前库。
+当前动作包括：`clarify`（先讨论并等待确认）、`search_papers`、`build_brief`、`survey_corpus`、`read_pages`、`read_full_papers`、`online_search`、`search_and_import`、`create_scientific_figure`、`create_presentation`、`create_mindmap`、`apply_skill`、`finish` 和 `none`。其中 `search_papers`/`build_brief` 会在向量 sidecar 可用时自动使用 BM25+向量混合检索；`apply_skill` 会用指定 Skill 分析已有证据或审查上一份草稿；`search_and_import` 会检索 OpenAlex 并尝试把可公开下载的论文加入当前库。
 
 ## PPT 原图与自绘图（2026-09-16 更新）
 

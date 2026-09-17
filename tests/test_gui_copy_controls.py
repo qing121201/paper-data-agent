@@ -26,7 +26,10 @@ class GuiCopyControlTests(unittest.TestCase):
                 yield from descendants(child)
         button_texts = {str(widget.cget("text")) for widget in descendants(self.gui.import_tab)
                         if "text" in widget.keys()}
-        self.assertTrue({"复制论文标题", "复制本地路径", "复制整行", "从论文库移除"} <= button_texts)
+        self.assertTrue({
+            "复制论文标题", "复制本地路径", "复制整行",
+            "建立/更新向量索引", "从论文库移除",
+        } <= button_texts)
         children = self.gui.paper_tree.get_children()
         if not children:
             self.skipTest("No paper records available for clipboard smoke test")

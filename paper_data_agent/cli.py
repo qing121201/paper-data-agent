@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 from .core import PaperAgent, PaperIndex, evaluate_retrieval
+from .embeddings import DEFAULT_EMBEDDING_MODEL
 from .llm import LLMConfig, OpenAICompatibleClient
 from .skills import SELECTED_SKILLS, SkillCatalog, default_skill_root
 from .workflow import ResearchWorkflowAgent
@@ -23,6 +24,11 @@ def build_parser() -> argparse.ArgumentParser:
     search_parser.add_argument("--index", type=Path, required=True)
     search_parser.add_argument("--query", required=True)
     search_parser.add_argument("--top-k", type=int, default=5)
+
+    vectors_parser = subparsers.add_parser("vectors", help="Build a local embedding index")
+    vectors_parser.add_argument("--index", type=Path, required=True)
+    vectors_parser.add_argument("--model", default=DEFAULT_EMBEDDING_MODEL)
+    vectors_parser.add_argument("--batch-size", type=int, default=24)
 
     brief_parser = subparsers.add_parser("brief", help="Generate an evidence brief")
     brief_parser.add_argument("--index", type=Path, required=True)
@@ -63,6 +69,19 @@ def main() -> None:
     if args.command == "skills":
         catalog = SkillCatalog(args.skill_root)
         print(json.dumps(catalog.to_dicts(), ensure_ascii=False, indent=2))
+        return
+
+    if args.command == "vectors":
+        index = PaperIndex.load(args.index)
+        embedding = index.build_embeddings(
+            args.index, model_name=args.model, batch_size=args.batch_size
+        )
+        print(json.dumps({
+            "model": embedding.model_name,
+            "chunks": len(index.chunks),
+            "dimensions": int(embedding.vectors.shape[1]),
+            "index": str(args.index),
+        }, ensure_ascii=False))
         return
 
     if args.command == "agent":

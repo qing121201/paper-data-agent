@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from .adapters import ResearchToolAdapters
+from .embeddings import DEFAULT_EMBEDDING_MODEL, LocalEmbeddingIndex, vector_paths
 from .reading import abstract_or_front_pages, build_documents, estimate_tokens, full_page_unit, select_with_budget
 
 
@@ -57,6 +58,7 @@ class SearchHit:
     score: float
     text: str
     source_url: str = ""
+    retrieval: str = "bm25"
 
 
 class PaperIndex:
@@ -64,6 +66,7 @@ class PaperIndex:
 
     def __init__(self, chunks: list[PaperChunk]):
         self.chunks = chunks
+        self.embedding_index: LocalEmbeddingIndex | None = None
         self._tokens = [tokenize(chunk.text) for chunk in chunks]
         self._term_counts = [Counter(tokens) for tokens in self._tokens]
         self._doc_freq: Counter[str] = Counter()
@@ -139,7 +142,18 @@ class PaperIndex:
     @classmethod
     def load(cls, path: Path) -> "PaperIndex":
         payload = json.loads(path.read_text(encoding="utf-8"))
-        return cls([PaperChunk(**item) for item in payload["chunks"]])
+        index = cls([PaperChunk(**item) for item in payload["chunks"]])
+        vectors_path, metadata_path = vector_paths(path)
+        if vectors_path.is_file() and metadata_path.is_file():
+            try:
+                index.embedding_index = LocalEmbeddingIndex.load(
+                    vectors_path, metadata_path, index.chunks
+                )
+            except Exception:
+                # A stale or damaged vector sidecar must never make the portable
+                # BM25 JSON index unusable.
+                index.embedding_index = None
+        return index
 
     def save(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -152,6 +166,24 @@ class PaperIndex:
             "chunks": [asdict(chunk) for chunk in self.chunks],
         }
         path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+
+    def build_embeddings(
+        self,
+        index_path: Path,
+        model_name: str = DEFAULT_EMBEDDING_MODEL,
+        encoder: Any | None = None,
+        batch_size: int = 24,
+    ) -> LocalEmbeddingIndex:
+        vectors_path, metadata_path = vector_paths(index_path)
+        self.embedding_index = LocalEmbeddingIndex.build(
+            self.chunks,
+            vectors_path,
+            metadata_path,
+            model_name=model_name,
+            encoder=encoder,
+            batch_size=batch_size,
+        )
+        return self.embedding_index
 
     def _bm25_score(self, query_tokens: list[str], index: int) -> float:
         if not query_tokens or not self.chunks:
@@ -171,20 +203,23 @@ class PaperIndex:
             score += inverse_frequency * frequency * (k1 + 1) / denominator
         return score
 
-    def search(self, query: str, top_k: int = 5) -> list[SearchHit]:
+    def _bm25_ranked(self, query: str) -> list[tuple[float, int]]:
         query_tokens = tokenize(query)
         if not query_tokens:
             raise ValueError("query must contain searchable words")
-        if top_k < 1:
-            raise ValueError("top_k must be positive")
-        ranked = sorted(
-            ((self._bm25_score(query_tokens, idx), chunk) for idx, chunk in enumerate(self.chunks)),
+        return sorted(
+            ((self._bm25_score(query_tokens, idx), idx) for idx in range(len(self.chunks))),
             key=lambda item: item[0],
             reverse=True,
         )
+
+    def _hits_from_ranked(
+        self, ranked: list[tuple[float, int]], top_k: int, retrieval: str
+    ) -> list[SearchHit]:
         hits: list[SearchHit] = []
         seen_papers: set[str] = set()
-        for score, chunk in ranked:
+        for score, index in ranked:
+            chunk = self.chunks[index]
             if score <= 0 or chunk.paper_id in seen_papers:
                 continue
             seen_papers.add(chunk.paper_id)
@@ -196,11 +231,42 @@ class PaperIndex:
                     score=round(score, 4),
                     text=chunk.text,
                     source_url=chunk.source_url,
+                    retrieval=retrieval,
                 )
             )
             if len(hits) >= top_k:
                 break
         return hits
+
+    def search_bm25(self, query: str, top_k: int = 5) -> list[SearchHit]:
+        if top_k < 1:
+            raise ValueError("top_k must be positive")
+        return self._hits_from_ranked(self._bm25_ranked(query), top_k, "bm25")
+
+    def search(self, query: str, top_k: int = 5) -> list[SearchHit]:
+        if top_k < 1:
+            raise ValueError("top_k must be positive")
+        bm25_ranked = self._bm25_ranked(query)
+        if self.embedding_index is None:
+            return self._hits_from_ranked(bm25_ranked, top_k, "bm25")
+
+        semantic_scores = self.embedding_index.scores(query)
+        semantic_ranked = sorted(
+            ((float(score), index) for index, score in enumerate(semantic_scores)),
+            key=lambda item: item[0],
+            reverse=True,
+        )
+        # Reciprocal-rank fusion compares order rather than incomparable raw
+        # BM25 and cosine scales. Limiting each list keeps weak tail matches
+        # from overwhelming useful evidence.
+        fused: defaultdict[int, float] = defaultdict(float)
+        for rank, (score, index) in enumerate(bm25_ranked[:200], start=1):
+            if score > 0:
+                fused[index] += 1.0 / (60 + rank)
+        for rank, (_score, index) in enumerate(semantic_ranked[:200], start=1):
+            fused[index] += 1.0 / (60 + rank)
+        ranked = sorted(((score, index) for index, score in fused.items()), reverse=True)
+        return self._hits_from_ranked(ranked, top_k, "hybrid")
 
     def filename_baseline(self, query: str, top_k: int = 5) -> list[str]:
         query_tokens = set(tokenize(query))
@@ -215,6 +281,9 @@ class PaperIndex:
 
     def search_documents(self, query: str, top_k: int = 5) -> list[str]:
         return [hit.title for hit in self.search(query, top_k=top_k)]
+
+    def search_bm25_documents(self, query: str, top_k: int = 5) -> list[str]:
+        return [hit.title for hit in self.search_bm25(query, top_k=top_k)]
 
 
 class ToolRegistry:
@@ -437,7 +506,7 @@ class PaperAgent:
                     full_page_unit(
                         document,
                         hit.page,
-                        f"BM25 检索命中该页（score={hit.score}）；读取整页，不截取命中句前后固定字符。",
+                        f"{('BM25+向量混合检索' if hit.retrieval == 'hybrid' else 'BM25 检索')}命中该页（score={hit.score}）；读取整页，不截取命中句前后固定字符。",
                     )
                 )
             if len(candidates) >= top_k:
@@ -453,7 +522,7 @@ class PaperAgent:
                 "",
                 f"- 候选论文：{len(candidates)} 篇；实际完整读取：{len(selected)} 篇；因预算跳过：{len(skipped)} 篇。",
                 f"- 证据预算：约 {evidence_token_budget} token；本次完整页面估算使用：约 {used_tokens} token。",
-                "- 阅读策略：先用 BM25 选择与问题最相关的论文页面，再读取命中页的完整提取文本。没有使用 420/520 字符截断。",
+                "- 阅读策略：先用可用的 BM25/向量混合检索选择最相关论文页面，再读取命中页的完整提取文本。未建立向量索引时自动回退 BM25；没有使用 420/520 字符截断。",
                 "",
                 "| 论文 | 阅读范围 | 完整性 | 选择原因 |",
                 "|---|---|---|---|",
@@ -572,8 +641,10 @@ class PaperAgent:
 def evaluate_retrieval(index: PaperIndex, benchmark: list[dict[str, Any]], top_k: int = 3) -> dict[str, Any]:
     methods = {
         "filename_baseline": index.filename_baseline,
-        "bm25_fulltext": index.search_documents,
+        "bm25_fulltext": index.search_bm25_documents,
     }
+    if index.embedding_index is not None:
+        methods["hybrid_bm25_vector"] = index.search_documents
     output: dict[str, Any] = {"top_k": top_k, "query_count": len(benchmark), "methods": {}}
     for method_name, method in methods.items():
         rows = []

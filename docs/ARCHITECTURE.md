@@ -17,7 +17,8 @@
 | `gui.py` | Windows 图形窗口、论文库切换、导入状态、模型设置和聊天交互 |
 | `library.py` | 独立论文库目录、元数据、去重、索引更新和来源管理 |
 | `web_sources.py` | 公开 URL 校验、HTML 中 PDF 发现、下载限制和缓存 |
-| `core.py` | PDF 抽取、文本分块、BM25 与受控工具注册 |
+| `core.py` | PDF 抽取、文本分块、BM25/向量混合排序与受控工具注册 |
+| `embeddings.py` | 公开本地 Embedding 模型、向量 sidecar、指纹校验和自动回退 |
 | `reading.py` | 重建完整 PDF 页、识别完整摘要边界、制定不可拆分的证据预算计划 |
 | `adapters.py` | OpenAlex、科研绘图、PowerPoint 和思维导图执行适配器 |
 | `workflow.py` | 有界多步规划、工具执行、Skill 中间分析、检查点恢复和最终回答 |
@@ -37,6 +38,7 @@
 - 只允许 HTTP/HTTPS 公开地址；本机、局域网、凭据型 URL 被拒绝。
 - 登录、付费墙、验证码和反自动访问限制不会被绕过。
 - `.env` 可能包含用户主动保存的明文 API Key，已被 Git 忽略，不进入对话记录。
+- 向量索引保存为 `index.vectors.npz/json`，只含本地生成的数值向量和模型/指纹元数据；模型权重由 Hugging Face 缓存管理。
 
 ## Agent 可选择的工具
 
@@ -59,4 +61,4 @@
 
 ## 当前没有的基础设施
 
-当前版本没有自训练语言模型、向量数据库、自训练 Embedding、REST 服务或 SQL/云数据库。检索使用本地 BM25；论文库、索引和会话使用 JSON 文件；模型通过 OpenAI 兼容 HTTP 接口调用。可选扩展及其成本见 [ARCHITECTURE_OPTIONS.md](ARCHITECTURE_OPTIONS.md)。
+当前版本没有自训练语言模型、独立向量数据库、自训练 Embedding、REST 服务或 SQL/云数据库。检索默认使用本地 BM25，可由用户建立 `multilingual-e5-small` 本地向量 sidecar，与 BM25 通过倒数排名融合；论文库、正文索引和会话仍使用 JSON/NPZ 文件。生成式模型通过 OpenAI 兼容 HTTP 接口调用。可选扩展及其成本见 [ARCHITECTURE_OPTIONS.md](ARCHITECTURE_OPTIONS.md)。

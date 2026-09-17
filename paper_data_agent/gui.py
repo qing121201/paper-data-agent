@@ -269,6 +269,7 @@ class PaperAgentGUI:
         ttk.Button(actions, text="复制论文标题", command=self._copy_selected_title).pack(side="left")
         ttk.Button(actions, text="复制本地路径", command=self._copy_selected_path).pack(side="left", padx=(8, 0))
         ttk.Button(actions, text="复制整行", command=self._copy_selected_row).pack(side="left", padx=(8, 0))
+        ttk.Button(actions, text="建立/更新向量索引", command=self._build_vector_index).pack(side="left", padx=(16, 0))
         ttk.Button(actions, text="从论文库移除", command=self._remove_selected_paper).pack(side="right")
         columns = ("title", "type", "path", "source")
         self.paper_tree = ttk.Treeview(listing, columns=columns, show="headings", selectmode="browse")
@@ -376,8 +377,9 @@ class PaperAgentGUI:
             "1. 点击“新建论文库”，每个课题建议使用一个独立论文库。\n"
             "2. 在“论文导入”页粘贴本地文件夹地址，或点击“浏览选择”。\n"
             "3. 也可以粘贴公开 PDF 或论文网页网址，程序会下载并缓存公开 PDF。\n"
-            "4. 点击右上角“模型设置”，可直接选择 DeepSeek、Kimi、千问、智谱等预设。\n"
-            "5. 进入“与 Agent 对话”，直接描述任务。\n\n"
+            "4. 可点击“建立/更新向量索引”，首次下载公开多语言 Embedding 模型，之后使用 BM25+向量混合检索。\n"
+            "5. 点击右上角“模型设置”，可直接选择 DeepSeek、Kimi、千问、智谱等预设。\n"
+            "6. 进入“与 Agent 对话”，直接描述任务。\n\n"
             "数据位置\n\n"
             f"所有论文库保存在：{LIBRARIES_ROOT}\n"
             "每个论文库独立包含元数据、索引、网页下载缓存和对话记录。\n"
@@ -469,9 +471,7 @@ class PaperAgentGUI:
 
     def _open_library(self, library_id: str) -> None:
         self.current_library = self.manager.open(library_id)
-        self.library_status.configure(
-            text=f"{self.current_library.paper_count()} 篇论文"
-        )
+        self.library_status.configure(text=self._library_status_text(self.current_library))
         self._refresh_papers()
         self._restore_session(self.current_library)
         if hasattr(self, "ppt_panel"):
@@ -555,7 +555,15 @@ class PaperAgentGUI:
                 "", "end", iid=record.paper_id,
                 values=(record.title, "网页" if record.source_type == "web" else "本地", record.local_path, source),
             )
-        self.library_status.configure(text=f"{len(records)} 篇论文")
+        self.library_status.configure(text=self._library_status_text(self.current_library))
+
+    @staticmethod
+    def _library_status_text(library: PaperLibrary) -> str:
+        vector = library.vector_index_status()
+        mode = "BM25 + 本地向量" if vector == "可用" else (
+            "BM25（向量需更新）" if vector == "需要更新" else "BM25"
+        )
+        return f"{library.paper_count()} 篇论文 · {mode}"
 
     def _browse_folder(self) -> None:
         selected = filedialog.askdirectory(parent=self.root, title="选择包含论文 PDF 的文件夹")
@@ -593,6 +601,32 @@ class PaperAgentGUI:
             self._import_complete,
             self.import_message,
             "正在读取公开网页并建立索引……",
+        )
+
+    def _build_vector_index(self) -> None:
+        library = self._require_library()
+        if not library:
+            return
+        if not library.index_path.is_file():
+            messagebox.showinfo("请先导入论文", "当前论文库还没有可建立向量索引的论文。")
+            return
+        self._run_background(
+            library.build_vector_index,
+            self._vector_index_complete,
+            self.import_message,
+            "正在下载/加载本地 Embedding 模型并建立向量索引……",
+        )
+
+    def _vector_index_complete(self, result: dict) -> None:
+        if self.current_library:
+            self.library_status.configure(text=self._library_status_text(self.current_library))
+        self.import_message.configure(
+            text=f"向量索引可用：{result['chunks']} 个文本块，{result['dimensions']} 维"
+        )
+        messagebox.showinfo(
+            "向量索引完成",
+            f"模型：{result['model']}\n文本块：{result['chunks']}\n"
+            "之后检索会自动使用 BM25 + 本地向量混合排序。",
         )
 
     def _import_complete(self, result) -> None:

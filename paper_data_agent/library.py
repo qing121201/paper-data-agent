@@ -9,6 +9,7 @@ import re
 import uuid
 
 from .core import PaperIndex
+from .embeddings import DEFAULT_EMBEDDING_MODEL, vector_paths, vector_status
 from .web_sources import download_public_paper
 
 
@@ -389,6 +390,9 @@ class PaperLibrary:
             index.save(self.index_path)
         elif self.index_path.exists():
             self.index_path.unlink()
+            for sidecar in vector_paths(self.index_path):
+                if sidecar.exists():
+                    sidecar.unlink()
         return removed
 
     def rebuild_index(self) -> None:
@@ -397,6 +401,38 @@ class PaperLibrary:
         if not paths:
             return
         self._build_index_for(records).save(self.index_path)
+
+    def build_vector_index(
+        self,
+        model_name: str = DEFAULT_EMBEDDING_MODEL,
+        batch_size: int = 24,
+    ) -> dict[str, object]:
+        if not self.index_path.is_file():
+            raise ValueError("当前论文库还没有全文索引，请先导入论文")
+        index = PaperIndex.load(self.index_path)
+        embedding = index.build_embeddings(
+            self.index_path, model_name=model_name, batch_size=batch_size
+        )
+        return {
+            "model": embedding.model_name,
+            "chunks": len(index.chunks),
+            "dimensions": int(embedding.vectors.shape[1]),
+            "status": "可用",
+        }
+
+    def vector_index_status(self) -> str:
+        if not self.index_path.is_file():
+            return "未建立"
+        try:
+            index = PaperIndex.load(self.index_path)
+        except (OSError, ValueError, TypeError, json.JSONDecodeError):
+            return "需要更新"
+        if index.embedding_index is not None:
+            return "可用"
+        vectors_path, metadata_path = vector_paths(self.index_path)
+        if vectors_path.exists() or metadata_path.exists():
+            return "需要更新"
+        return vector_status(self.index_path, index.chunks)
 
     def paper_count(self) -> int:
         return len(self.records())
