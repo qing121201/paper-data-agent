@@ -118,13 +118,16 @@ class ResearchToolAdapters:
                 paper = {
                     "title": item.get("display_name") or item.get("title"),
                     "year": item.get("publication_year"),
+                    "publication_date": item.get("publication_date", ""),
                     "doi": item.get("doi"),
                     "authors": [name for name in authors if name],
                     "cited_by_count": item.get("cited_by_count", 0),
+                    "journal": ((item.get("primary_location") or {}).get("source") or {}).get("display_name", ""),
                     "open_access_url": location.get("pdf_url") or location.get("landing_page_url"),
                     "open_access_urls": public_urls,
                     "openalex_id": item.get("id"),
                     "abstract": self._reconstruct_openalex_abstract(item),
+                    "relevance_score": item.get("relevance_score"),
                 }
                 title_terms = set(re.findall(r"[A-Za-z0-9]+", str(paper["title"]).lower()))
                 overlap = len(query_terms & title_terms)

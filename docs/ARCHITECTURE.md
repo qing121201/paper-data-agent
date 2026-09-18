@@ -3,12 +3,13 @@
 ## 用户流程
 
 1. `启动论文Agent.cmd` 启动 `paper_data_agent.gui`。
-2. 用户新建或切换一个独立论文库。
-3. 用户粘贴本地文件夹地址、使用 Windows 文件夹选择器，或输入公开论文网址。
-4. `PaperLibrary` 保存来源元数据，调用 `PaperIndex` 解析 PDF、按页分块并建立索引。
-5. 用户在聊天页提出任务；`ResearchWorkflowAgent` 让模型选择下一个受限工具、英文检索词和科研 Skill。
-6. `_collect_steps` 执行并保存完整结果，再交给模型决定是否补读、补搜、执行写作/审查 Skill 或结束；每轮最多 6 个中间步骤。
-7. 中间模型产物明确标记为非原始证据；`finish` 或文件工具结束本轮。GUI 通过线程安全回调逐步展示实际动作，异常检查点保留已完成步骤和证据。
+2. 首页加载本地订阅和当天缓存，并在有订阅时后台刷新 OpenAlex 推荐；用户可把公开全文加入指定论文库。
+3. 用户新建或切换一个独立论文库。
+4. 用户粘贴本地文件夹地址、使用 Windows 文件夹选择器，或输入公开论文网址。
+5. `PaperLibrary` 保存来源元数据，调用 `PaperIndex` 解析 PDF、按页分块并建立索引。
+6. 用户在聊天页提出任务；`ResearchWorkflowAgent` 让模型选择下一个受限工具、英文检索词和科研 Skill。
+7. `_collect_steps` 执行并保存完整结果，再交给模型决定是否补读、补搜、执行写作/审查 Skill 或结束；每轮最多 6 个中间步骤。
+8. 中间模型产物明确标记为非原始证据；`finish` 或文件工具结束本轮。GUI 通过线程安全回调逐步展示实际动作，异常检查点保留已完成步骤和证据。
 
 ## 代码职责
 
@@ -16,6 +17,7 @@
 |---|---|
 | `gui.py` | Windows 图形窗口、论文库切换、导入状态、模型设置和聊天交互 |
 | `library.py` | 独立论文库目录、元数据、去重、索引更新和来源管理 |
+| `discovery.py` | 首页订阅、OpenAlex 候选聚合、时间/引用/相关性排序与当天缓存 |
 | `web_sources.py` | 公开 URL 校验、HTML 中 PDF 发现、下载限制和缓存 |
 | `core.py` | PDF 抽取、文本分块、BM25/向量混合排序与受控工具注册 |
 | `embeddings.py` | 公开本地 Embedding 模型、向量 sidecar、指纹校验和自动回退 |
@@ -38,6 +40,7 @@
 - 只允许 HTTP/HTTPS 公开地址；本机、局域网、凭据型 URL 被拒绝。
 - 登录、付费墙、验证码和反自动访问限制不会被绕过。
 - `.env` 可能包含用户主动保存的明文 API Key，已被 Git 忽略，不进入对话记录。
+- `config/discovery.json` 和 `config/discovery_cache.json` 保存本机订阅与当天推荐，已被 Git 忽略；不含 API Key。
 - 向量索引保存为 `index.vectors.npz/json`，只含本地生成的数值向量和模型/指纹元数据；模型权重由 Hugging Face 缓存管理。
 
 ## Agent 可选择的工具

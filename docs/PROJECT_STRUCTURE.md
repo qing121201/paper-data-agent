@@ -5,7 +5,7 @@
 | 路径 | 用途 |
 |---|---|
 | `paper_data_agent/` | Agent 主程序：GUI、论文库、索引、阅读、LLM、工具和工作流 |
-| `tests/` | 66 项自动回归测试，覆盖检索、导入、规划、全文阅读、PPT、图像与 GUI 关键逻辑 |
+| `tests/` | 自动回归测试，覆盖检索、推荐、导入、规划、全文阅读、PPT、图像与 GUI 关键逻辑 |
 | `benchmarks/` | 10 条人工标注的检索查询，用来比较文件名基线和 BM25，不是训练集 |
 | `config/README.md` | 本机 UI 配置格式说明；真正的 `config/ui.json` 不提交 |
 | `docs/` | 架构、安装、Skill、安全边界和未来扩展说明 |
@@ -24,6 +24,7 @@
 | `tmp/` | 浏览器、下载和渲染临时文件，体积大且可重新生成 |
 | `科研实践报告/` | 个人报告、模板、成品和渲染检查材料 |
 | `config/ui.json` | 本机皮肤等偏好 |
+| `config/discovery.json`、`config/discovery_cache.json` | 本机论文订阅与当天推荐缓存 |
 | `task_plan.md`、`progress.md`、`findings.md` | 本次开发过程记录，不是产品运行必需文件 |
 
 `.git/` 是 Git 自己维护的版本历史和索引数据库，不是 Agent 功能代码。不要手动编辑或删除其中的文件；日常通过 `git status`、`git log`、`git commit` 操作。

@@ -31,4 +31,4 @@ python -m unittest discover -s tests -q
 python -m compileall -q paper_data_agent
 ```
 
-测试使用临时目录和模型替身，不需要真实 API Key。联网下载、PowerPoint COM 和不同模型服务商仍需要单独的人工验收，66 项测试并不等于所有外部服务永远可用。
+测试使用临时目录和模型替身，不需要真实 API Key。联网下载、OpenAlex、PowerPoint COM 和不同模型服务商仍需要单独的人工验收，自动测试通过不等于所有外部服务永远可用。

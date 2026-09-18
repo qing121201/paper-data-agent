@@ -8,6 +8,8 @@ __pycache__/
 libraries/*
 !libraries/README.md
 config/ui.json
+config/discovery.json
+config/discovery_cache.json
 output/
 tmp/
 科研实践报告/
