@@ -9,7 +9,7 @@ from types import SimpleNamespace
 
 from paper_data_agent.core import PaperChunk, PaperIndex
 from paper_data_agent.library import ImportResult, LibraryManager
-from paper_data_agent.web_sources import download_public_paper, probe_public_url
+from paper_data_agent.web_sources import WINDOWS_NO_WINDOW, download_public_paper, probe_public_url
 
 
 FAKE_PDF = b"%PDF-1.4\n% paper agent test fixture\n%%EOF\n"
@@ -68,9 +68,10 @@ class WebSourceTests(unittest.TestCase):
         )
         with patch("paper_data_agent.web_sources._validate_public_url"), patch(
             "paper_data_agent.web_sources.subprocess.run", return_value=completed
-        ):
+        ) as runner:
             status = probe_public_url("https://example.org/paper")
         self.assertTrue(status.available)
+        self.assertEqual(runner.call_args.kwargs["creationflags"], WINDOWS_NO_WINDOW)
 
     def test_download_direct_pdf_and_html_paper_page(self) -> None:
         with tempfile.TemporaryDirectory() as directory, PaperSite() as base_url:

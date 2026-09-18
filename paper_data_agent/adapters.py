@@ -12,6 +12,7 @@ from urllib.parse import urlencode
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+WINDOWS_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 
 def _slug(text: str, fallback: str) -> str:
@@ -72,6 +73,7 @@ class ResearchToolAdapters:
             errors="replace",
             timeout=60,
             check=False,
+            creationflags=WINDOWS_NO_WINDOW,
         )
         if completed.returncode == 0:
             papers = json.loads(completed.stdout)
@@ -92,6 +94,7 @@ class ResearchToolAdapters:
                 errors="replace",
                 timeout=50,
                 check=False,
+                creationflags=WINDOWS_NO_WINDOW,
             )
             if fallback.returncode != 0:
                 detail = (fallback.stderr or completed.stderr or completed.stdout).strip()[:600]
@@ -248,6 +251,7 @@ class ResearchToolAdapters:
             errors="replace",
             timeout=180,
             check=False,
+            creationflags=WINDOWS_NO_WINDOW,
         )
         if completed.returncode != 0:
             detail = (completed.stderr or completed.stdout).strip()[-1200:]
@@ -400,6 +404,7 @@ class ResearchToolAdapters:
             errors="replace",
             timeout=120,
             check=False,
+            creationflags=WINDOWS_NO_WINDOW,
         )
         if completed.returncode != 0 or not pptx_path.is_file():
             detail = (completed.stderr or completed.stdout).strip()[:800]
@@ -414,6 +419,7 @@ class ResearchToolAdapters:
             errors="replace",
             timeout=60,
             check=False,
+            creationflags=WINDOWS_NO_WINDOW,
         )
         files = [str(pptx_path), str(spec_path)]
         if audit_path.is_file():

@@ -16,6 +16,7 @@ MAX_PDF_BYTES = 60 * 1024 * 1024
 MAX_HTML_BYTES = 3 * 1024 * 1024
 USER_AGENT = "PaperDataAgent/1.0 (public academic paper importer)"
 PROXY_FAKE_IP_RANGE = ipaddress.ip_network("198.18.0.0/15")
+WINDOWS_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 
 @dataclass(slots=True)
@@ -104,6 +105,7 @@ def _fetch_with_curl(url: str, max_bytes: int, allow_private: bool) -> tuple[byt
          "--header", "Accept: application/pdf,text/html;q=0.9,*/*;q=0.5",
          "--output", "-", "--write-out", f"%{{stderr}}\n{marker}%{{url_effective}}\t%{{content_type}}", url],
         capture_output=True, timeout=50, check=False,
+        creationflags=WINDOWS_NO_WINDOW,
     )
     stderr = completed.stderr.decode("utf-8", errors="replace")
     metadata = stderr.rsplit(marker, 1)[-1].strip().split("\t", 1) if marker in stderr else []
@@ -128,6 +130,7 @@ def probe_public_url(url: str, timeout_seconds: int = 15) -> PublicURLStatus:
          "--write-out", f"%{{stderr}}\n{marker}%{{http_code}}\t%{{url_effective}}", probe_url],
         capture_output=True,
         timeout=max(8, min(int(timeout_seconds) + 5, 35)), check=False,
+        creationflags=WINDOWS_NO_WINDOW,
     )
     stderr = completed.stderr.decode("utf-8", errors="replace")
     metadata = stderr.rsplit(marker, 1)[-1].strip() if marker in stderr else ""

@@ -1,6 +1,8 @@
 import tkinter as tk
 import unittest
+from unittest.mock import patch
 
+from paper_data_agent.discovery import DiscoverySubscription
 from paper_data_agent.gui import PaperAgentGUI
 
 
@@ -67,6 +69,33 @@ class GuiCopyControlTests(unittest.TestCase):
         texts = {str(widget.cget("text")) for widget in descendants(self.gui.home_tab)
                  if "text" in widget.keys()}
         self.assertTrue({"AI Agent", "大语言模型", "多模态学习", "虚拟细胞", "具身智能"} <= texts)
+
+    def test_quick_topic_switches_directly_without_opening_settings(self) -> None:
+        topic = "测试快捷方向"
+        with patch.object(self.gui.discovery_store, "save_subscriptions"), patch.object(
+            self.gui, "_open_subscription_dialog"
+        ) as dialog, patch.object(self.gui, "_refresh_discovery") as refresh:
+            self.gui._quick_topic(topic)
+        selected = self.gui._selected_subscription()
+        self.assertIsNotNone(selected)
+        self.assertEqual(selected.name, topic)
+        self.assertEqual(selected.topics, [topic])
+        dialog.assert_not_called()
+        refresh.assert_called_once_with()
+
+    def test_discovery_refresh_queues_latest_request_without_global_busy_dialog(self) -> None:
+        subscription = DiscoverySubscription("队列测试", ["computer vision"], [], 3, 90)
+        self.gui.discovery_subscriptions = [subscription]
+        self.gui._refresh_discovery_controls()
+        self.gui.discovery_subscription_var.set(subscription.name)
+        self.gui.discovery_busy = True
+        with patch("paper_data_agent.gui.messagebox.showinfo") as info:
+            self.gui._refresh_discovery()
+        self.assertEqual(
+            self.gui._pending_discovery_refresh,
+            (subscription.subscription_id, self.gui.discovery_sort_var.get(), False),
+        )
+        info.assert_not_called()
 
 
 if __name__ == "__main__":

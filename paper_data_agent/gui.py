@@ -79,6 +79,8 @@ class PaperAgentGUI:
         self.library_lookup: dict[str, str] = {}
         self.histories: dict[str, list[dict[str, str]]] = {}
         self.busy = False
+        self.discovery_busy = False
+        self._pending_discovery_refresh: tuple[str, str, bool] | None = None
         self.discovery_store = DiscoveryStore(DISCOVERY_SETTINGS_PATH, DISCOVERY_CACHE_PATH)
         self.discovery_service = DiscoveryService(PROJECT_ROOT / "output" / "discovery")
         self.discovery_subscriptions = self.discovery_store.load_subscriptions()
@@ -266,7 +268,7 @@ class PaperAgentGUI:
         self.discovery_status = ttk.Label(heading, text="等待设置订阅", style="Muted.TLabel")
         self.discovery_status.pack(side="right")
 
-        quick = ttk.LabelFrame(self.home_tab, text="热门方向（点击后可继续修改）", padding=8)
+        quick = ttk.LabelFrame(self.home_tab, text="热门方向（点击即切换并刷新）", padding=8)
         quick.pack(fill="x", pady=(0, 10))
         for index, topic in enumerate(("AI Agent", "大语言模型", "多模态学习", "计算机视觉",
                                        "自然语言处理", "虚拟细胞", "脑科学与 fMRI", "具身智能")):
@@ -358,7 +360,28 @@ class PaperAgentGUI:
         return next((item for item in self.discovery_subscriptions if item.name == selected), None)
 
     def _quick_topic(self, topic: str) -> None:
-        self._open_subscription_dialog(prefill_topic=topic)
+        subscription = next(
+            (item for item in self.discovery_subscriptions
+             if item.name == topic or [value.casefold() for value in item.topics] == [topic.casefold()]),
+            None,
+        )
+        if subscription is None:
+            current = self._selected_subscription()
+            subscription = DiscoverySubscription(
+                name=topic,
+                topics=[topic],
+                count=current.count if current else 5,
+                recency_days=current.recency_days if current else 90,
+            ).normalized()
+            self.discovery_subscriptions.append(subscription)
+            self.discovery_store.save_subscriptions(self.discovery_subscriptions)
+            self._refresh_discovery_controls()
+        self.discovery_subscription_var.set(subscription.name)
+        cached = self.discovery_store.load_cached(subscription, self.discovery_sort_var.get())
+        if cached is not None:
+            self._render_discovery_papers(cached)
+        self.discovery_status.configure(text=f"已选择“{topic}”，正在更新……")
+        self._refresh_discovery()
 
     def _open_subscription_dialog(self, prefill_topic: str = "") -> None:
         current = None if prefill_topic else self._selected_subscription()
@@ -483,37 +506,82 @@ class PaperAgentGUI:
             return
         sort_mode = self.discovery_sort_var.get()
 
+        if self.discovery_busy:
+            self._pending_discovery_refresh = (subscription.subscription_id, sort_mode, silent)
+            self.discovery_status.configure(text=f"已选择“{subscription.name}”，等待当前更新结束后自动刷新……")
+            return
+        self._start_discovery_refresh(subscription, sort_mode, silent)
+
+    def _start_discovery_refresh(
+        self, subscription: DiscoverySubscription, sort_mode: str, silent: bool,
+    ) -> None:
+        self.discovery_busy = True
+        self.discovery_status.configure(text=f"正在更新“{subscription.name}”……")
+
         def task():
             papers = self.discovery_service.recommend(subscription, sort_mode)
             self.discovery_store.save_cached(subscription, sort_mode, papers)
             return papers
 
-        def success(papers: list[DiscoveryPaper]) -> None:
-            self._render_discovery_papers(papers)
-            self.discovery_status.configure(text=f"今日已更新 · {len(papers)} 篇 · {datetime.now().strftime('%H:%M')}")
-
-        if not silent:
-            self._run_background(task, success, self.discovery_status, "正在从 OpenAlex 更新……")
-            return
-        if self.busy:
-            return
-        self.busy = True
-        self.discovery_status.configure(text="正在从 OpenAlex 更新……")
-
         def runner() -> None:
             try:
                 papers = task()
-            except Exception:
-                self.root.after(0, self._silent_discovery_failed)
+            except Exception as exc:
+                self.root.after(
+                    0,
+                    lambda error=exc: self._discovery_refresh_failed(
+                        subscription.subscription_id, sort_mode, silent, error,
+                    ),
+                )
             else:
-                self.root.after(0, lambda: self._background_done(self.discovery_status, success, papers))
+                self.root.after(
+                    0,
+                    lambda: self._discovery_refresh_done(subscription.subscription_id, sort_mode, papers),
+                )
 
         threading.Thread(target=runner, daemon=True).start()
 
-    def _silent_discovery_failed(self) -> None:
-        self.busy = False
-        suffix = "，已保留今日缓存" if self.discovery_papers else "；可稍后手动刷新"
-        self.discovery_status.configure(text="自动更新失败" + suffix)
+    def _discovery_refresh_done(
+        self, subscription_id: str, sort_mode: str, papers: list[DiscoveryPaper],
+    ) -> None:
+        self.discovery_busy = False
+        current = self._selected_subscription()
+        if (current and current.subscription_id == subscription_id
+                and self.discovery_sort_var.get() == sort_mode):
+            self._render_discovery_papers(papers)
+            self.discovery_status.configure(
+                text=f"“{current.name}”已更新 · {len(papers)} 篇 · {datetime.now().strftime('%H:%M')}",
+            )
+        self._start_pending_discovery_refresh()
+
+    def _discovery_refresh_failed(
+        self, subscription_id: str, sort_mode: str, silent: bool, exc: Exception,
+    ) -> None:
+        self.discovery_busy = False
+        current = self._selected_subscription()
+        is_current = bool(
+            current and current.subscription_id == subscription_id
+            and self.discovery_sort_var.get() == sort_mode
+        )
+        if is_current:
+            suffix = "，已保留当前结果" if self.discovery_papers else "；可稍后再次刷新"
+            self.discovery_status.configure(text="更新失败" + suffix)
+            if not silent:
+                messagebox.showerror("推荐更新失败", str(exc))
+        self._start_pending_discovery_refresh()
+
+    def _start_pending_discovery_refresh(self) -> None:
+        pending = self._pending_discovery_refresh
+        self._pending_discovery_refresh = None
+        if pending is None:
+            return
+        subscription_id, sort_mode, silent = pending
+        subscription = next(
+            (item for item in self.discovery_subscriptions if item.subscription_id == subscription_id),
+            None,
+        )
+        if subscription is not None:
+            self._start_discovery_refresh(subscription, sort_mode, silent)
 
     def _render_discovery_papers(self, papers: list[DiscoveryPaper]) -> None:
         for item in self.discovery_tree.get_children():
@@ -768,7 +836,7 @@ class PaperAgentGUI:
         self.help_text.insert(
             "1.0",
             "使用顺序\n\n"
-            "1. 首次打开停留在“首页”；可选择热门方向，或设置自定义标签、期刊和会议，每次推荐 2–10 篇。\n"
+            "1. 首次打开停留在“首页”；点击热门方向会直接切换并刷新；“订阅设置”用于修改标签、期刊、会议和每次推荐 2–10 篇。\n"
             "2. 进入“我的论文库”，点击“新建论文库”；每个课题建议使用一个独立论文库。\n"
             "3. 在论文库内的“论文导入”页粘贴本地文件夹地址，或点击“浏览选择”。\n"
             "4. 也可以从首页选择推荐论文和目标论文库，下载仍可访问的公开全文。\n"

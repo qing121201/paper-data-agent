@@ -7,7 +7,7 @@ from pathlib import Path
 import subprocess
 from typing import Any
 
-from .adapters import PROJECT_ROOT, ResearchToolAdapters
+from .adapters import PROJECT_ROOT, WINDOWS_NO_WINDOW, ResearchToolAdapters
 from .workflow import ResearchWorkflowAgent
 
 
@@ -66,6 +66,7 @@ def render_preview(spec_path: Path) -> list[Path]:
              str(PROJECT_ROOT / "scripts" / "render_presentation.ps1"),
              "-PptxPath", str(deck.resolve()), "-OutputDir", str(output.resolve())],
             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=180,
+            creationflags=WINDOWS_NO_WINDOW,
         )
         if result.returncode:
             raise RuntimeError("PPT 文件已保留，但 PowerPoint 预览导出失败：" + (result.stderr or result.stdout)[-500:])
