@@ -27,6 +27,13 @@ class DownloadedPaper:
     sha256: str
 
 
+@dataclass(slots=True)
+class PublicURLStatus:
+    available: bool
+    status_code: int
+    final_url: str
+
+
 class _PaperPageParser(HTMLParser):
     def __init__(self) -> None:
         super().__init__()
@@ -106,6 +113,43 @@ def _fetch_with_curl(url: str, max_bytes: int, allow_private: bool) -> tuple[byt
     final_url, content_type = metadata
     _validate_public_url(final_url, allow_private=allow_private)
     return completed.stdout, final_url, content_type.split(";", 1)[0].strip().lower()
+
+
+def probe_public_url(url: str, timeout_seconds: int = 15) -> PublicURLStatus:
+    """Check that a public paper page still exists without downloading its body."""
+    _validate_public_url(url)
+    zenodo = re.search(r"(?:zenodo\.|/records/|zenodo/)(\d+)", url, re.I)
+    probe_url = f"https://zenodo.org/api/records/{zenodo.group(1)}" if zenodo else url
+    marker = "__PAPER_AGENT_PROBE__"
+    completed = subprocess.run(
+        ["curl.exe", "--proxy", "", "--location", "--silent", "--show-error",
+         "--max-time", str(max(3, min(int(timeout_seconds), 30))),
+         "--max-filesize", str(1024 * 1024), "--range", "0-65535",
+         "--write-out", f"%{{stderr}}\n{marker}%{{http_code}}\t%{{url_effective}}", probe_url],
+        capture_output=True,
+        timeout=max(8, min(int(timeout_seconds) + 5, 35)), check=False,
+    )
+    stderr = completed.stderr.decode("utf-8", errors="replace")
+    metadata = stderr.rsplit(marker, 1)[-1].strip() if marker in stderr else ""
+    parts = metadata.rsplit("\t", 1)
+    try:
+        status = int(parts[0]) if parts else 0
+    except ValueError:
+        status = 0
+    final_url = parts[1] if len(parts) == 2 else probe_url
+    _validate_public_url(final_url)
+    sample = completed.stdout.decode("utf-8", errors="replace").casefold()
+    removed_markers = (
+        "record you are trying to access was removed",
+        "page you are trying to access has been removed",
+        '"is_deleted": true',
+        '"deletion_status": {"is_deleted": true',
+        '"status": 410',
+        '"removal_reason"',
+    )
+    removed = any(marker_text in sample for marker_text in removed_markers)
+    available = 200 <= status < 400 and not removed
+    return PublicURLStatus(available, status, url if available and zenodo else final_url)
 
 
 def _fetch(url: str, max_bytes: int, allow_private: bool) -> tuple[bytes, str, str]:

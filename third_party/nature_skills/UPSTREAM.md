@@ -14,3 +14,7 @@ Local integration patch: `nature-academic-search/scripts/academic_search.py`
 keeps the complete OpenAlex inverted-index abstract instead of the upstream
 500-character display truncation. This changes evidence display only, not search
 ranking or metadata.
+
+The same integration also preserves OpenAlex landing URL, work type and
+retraction status so the local homepage can verify that a recommended page
+still exists before presenting it to the user.

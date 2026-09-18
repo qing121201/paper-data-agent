@@ -123,6 +123,11 @@ class ResearchToolAdapters:
                     "authors": [name for name in authors if name],
                     "cited_by_count": item.get("cited_by_count", 0),
                     "journal": ((item.get("primary_location") or {}).get("source") or {}).get("display_name", ""),
+                    "landing_url": ((item.get("primary_location") or {}).get("landing_page_url")
+                                    or (item.get("best_oa_location") or {}).get("landing_page_url")
+                                    or item.get("doi") or item.get("id")),
+                    "work_type": item.get("type", ""),
+                    "is_retracted": bool(item.get("is_retracted")),
                     "open_access_url": location.get("pdf_url") or location.get("landing_page_url"),
                     "open_access_urls": public_urls,
                     "openalex_id": item.get("id"),

@@ -9,7 +9,7 @@ from types import SimpleNamespace
 
 from paper_data_agent.core import PaperChunk, PaperIndex
 from paper_data_agent.library import ImportResult, LibraryManager
-from paper_data_agent.web_sources import download_public_paper
+from paper_data_agent.web_sources import download_public_paper, probe_public_url
 
 
 FAKE_PDF = b"%PDF-1.4\n% paper agent test fixture\n%%EOF\n"
@@ -48,6 +48,30 @@ class PaperSite:
 
 
 class WebSourceTests(unittest.TestCase):
+    def test_probe_rejects_deleted_zenodo_tombstone_even_when_page_is_200(self) -> None:
+        completed = SimpleNamespace(
+            stdout=b'The record you are trying to access was removed from Zenodo. "removal_reason"',
+            stderr=b"\n__PAPER_AGENT_PROBE__200\thttps://zenodo.org/api/records/123",
+            returncode=0,
+        )
+        with patch("paper_data_agent.web_sources._validate_public_url"), patch(
+            "paper_data_agent.web_sources.subprocess.run", return_value=completed
+        ):
+            status = probe_public_url("https://doi.org/10.5281/zenodo.123")
+        self.assertFalse(status.available)
+
+    def test_probe_keeps_live_public_page(self) -> None:
+        completed = SimpleNamespace(
+            stdout=b"<html><title>Paper</title></html>",
+            stderr=b"\n__PAPER_AGENT_PROBE__200\thttps://example.org/paper",
+            returncode=0,
+        )
+        with patch("paper_data_agent.web_sources._validate_public_url"), patch(
+            "paper_data_agent.web_sources.subprocess.run", return_value=completed
+        ):
+            status = probe_public_url("https://example.org/paper")
+        self.assertTrue(status.available)
+
     def test_download_direct_pdf_and_html_paper_page(self) -> None:
         with tempfile.TemporaryDirectory() as directory, PaperSite() as base_url:
             destination = Path(directory)

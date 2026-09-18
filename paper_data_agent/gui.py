@@ -220,7 +220,8 @@ class PaperAgentGUI:
         )
         header.columnconfigure(0, weight=1)
 
-        bar = ttk.Frame(self.root, padding=(18, 0, 18, 10))
+    def _build_library_bar(self, parent: ttk.Frame) -> None:
+        bar = ttk.Frame(parent, padding=(0, 0, 0, 10))
         bar.pack(fill="x")
         ttk.Label(bar, text="当前论文库：", style="Heading.TLabel").pack(side="left")
         self.library_combo = ttk.Combobox(bar, state="readonly", width=42)
@@ -232,20 +233,26 @@ class PaperAgentGUI:
         self.library_status.pack(side="right")
 
     def _build_tabs(self) -> None:
-        self.notebook = ttk.Notebook(self.root)
-        self.notebook.pack(fill="both", expand=True, padx=18, pady=(0, 14))
-        self.home_tab = ttk.Frame(self.notebook, padding=16)
+        self.main_notebook = ttk.Notebook(self.root)
+        self.main_notebook.pack(fill="both", expand=True, padx=18, pady=(0, 14))
+        self.home_tab = ttk.Frame(self.main_notebook, padding=16)
+        self.library_hub_tab = ttk.Frame(self.main_notebook, padding=12)
+        self.help_tab = ttk.Frame(self.main_notebook, padding=16)
+        self.main_notebook.add(self.home_tab, text="首页")
+        self.main_notebook.add(self.library_hub_tab, text="我的论文库")
+        self.main_notebook.add(self.help_tab, text="使用说明")
+
+        self._build_library_bar(self.library_hub_tab)
+        self.notebook = ttk.Notebook(self.library_hub_tab)
+        self.notebook.pack(fill="both", expand=True)
         self.import_tab = ttk.Frame(self.notebook, padding=16)
         self.chat_tab = ttk.Frame(self.notebook, padding=16)
-        self.help_tab = ttk.Frame(self.notebook, padding=16)
-        self.notebook.add(self.home_tab, text="首页 · 今日论文")
         self.notebook.add(self.import_tab, text="论文导入")
         self.notebook.add(self.chat_tab, text="与 Agent 对话")
         self.ppt_tab = ttk.Frame(self.notebook, padding=12)
         self.notebook.add(self.ppt_tab, text="PPT 预览与修改")
         self.ppt_panel = PresentationPanel(self, self.ppt_tab)
         self.notebook.bind("<<NotebookTabChanged>>", self._tab_changed)
-        self.notebook.add(self.help_tab, text="说明")
         self._build_home_tab()
         self._build_import_tab()
         self._build_chat_tab()
@@ -254,10 +261,19 @@ class PaperAgentGUI:
     def _build_home_tab(self) -> None:
         heading = ttk.Frame(self.home_tab)
         heading.pack(fill="x", pady=(0, 10))
-        ttk.Label(heading, text="今日论文", style="Heading.TLabel").pack(side="left")
-        ttk.Label(heading, text="按标签、期刊或会议发现近期论文；引用数来自 OpenAlex。", style="Muted.TLabel").pack(side="left", padx=(10, 0))
+        ttk.Label(heading, text="论文发现", style="Heading.TLabel").pack(side="left")
+        ttk.Label(heading, text="每天按你的研究方向发现新论文；引用数来自 OpenAlex。", style="Muted.TLabel").pack(side="left", padx=(10, 0))
         self.discovery_status = ttk.Label(heading, text="等待设置订阅", style="Muted.TLabel")
         self.discovery_status.pack(side="right")
+
+        quick = ttk.LabelFrame(self.home_tab, text="热门方向（点击后可继续修改）", padding=8)
+        quick.pack(fill="x", pady=(0, 10))
+        for index, topic in enumerate(("AI Agent", "大语言模型", "多模态学习", "计算机视觉",
+                                       "自然语言处理", "虚拟细胞", "脑科学与 fMRI", "具身智能")):
+            ttk.Button(quick, text=topic, command=lambda value=topic: self._quick_topic(value)).grid(
+                row=index // 3, column=index % 3, sticky="ew", padx=3, pady=3)
+        for column in range(3):
+            quick.columnconfigure(column, weight=1)
 
         filters = ttk.Frame(self.home_tab)
         filters.pack(fill="x", pady=(0, 10))
@@ -277,7 +293,8 @@ class PaperAgentGUI:
         ttk.Button(filters, text="刷新今日推荐", command=self._refresh_discovery,
                    style="Accent.TButton").pack(side="left", padx=(10, 0))
 
-        list_frame = ttk.LabelFrame(self.home_tab, text="推荐结果（3–5 篇）", padding=8)
+        list_frame = ttk.LabelFrame(self.home_tab, text="推荐结果（每次 2–10 篇）", padding=8)
+        self.discovery_results_frame = list_frame
         list_frame.pack(fill="x")
         columns = ("title", "date", "venue", "citations", "access")
         self.discovery_tree = ttk.Treeview(list_frame, columns=columns, show="headings", height=5, selectmode="browse")
@@ -340,8 +357,11 @@ class PaperAgentGUI:
         selected = self.discovery_subscription_var.get()
         return next((item for item in self.discovery_subscriptions if item.name == selected), None)
 
-    def _open_subscription_dialog(self) -> None:
-        current = self._selected_subscription()
+    def _quick_topic(self, topic: str) -> None:
+        self._open_subscription_dialog(prefill_topic=topic)
+
+    def _open_subscription_dialog(self, prefill_topic: str = "") -> None:
+        current = None if prefill_topic else self._selected_subscription()
         dialog = tk.Toplevel(self.root)
         dialog.title("每日论文订阅设置")
         dialog.geometry("590x390")
@@ -350,12 +370,12 @@ class PaperAgentGUI:
         body = ttk.Frame(dialog, padding=18)
         body.pack(fill="both", expand=True)
         ttk.Label(body, text="订阅名称：").grid(row=0, column=0, sticky="w", pady=5)
-        name_var = tk.StringVar(value=current.name if current else "我的关注")
+        name_var = tk.StringVar(value=current.name if current else (prefill_topic or "我的关注"))
         ttk.Entry(body, textvariable=name_var).grid(row=0, column=1, sticky="ew", pady=5)
         ttk.Label(body, text="标签 / 主题：").grid(row=1, column=0, sticky="nw", pady=5)
         topics = tk.Text(body, height=4, wrap="word", font=("Microsoft YaHei UI", 9))
         topics.grid(row=1, column=1, sticky="ew", pady=5)
-        topics.insert("1.0", "，".join(current.topics) if current else "")
+        topics.insert("1.0", "，".join(current.topics) if current else prefill_topic)
         ttk.Label(body, text="用逗号分隔，例如：AI Agent，虚拟细胞，多模态学习", style="Muted.TLabel").grid(
             row=2, column=1, sticky="w")
         ttk.Label(body, text="期刊 / 会议：").grid(row=3, column=0, sticky="nw", pady=5)
@@ -367,7 +387,7 @@ class PaperAgentGUI:
         options.grid(row=5, column=1, sticky="w", pady=(12, 6))
         ttk.Label(options, text="每次推荐").pack(side="left")
         count_var = tk.IntVar(value=current.count if current else 5)
-        ttk.Spinbox(options, from_=3, to=5, textvariable=count_var, width=4).pack(side="left", padx=5)
+        ttk.Spinbox(options, from_=2, to=10, textvariable=count_var, width=4).pack(side="left", padx=5)
         ttk.Label(options, text="篇；检索最近").pack(side="left")
         days_var = tk.IntVar(value=current.recency_days if current else 90)
         ttk.Spinbox(options, from_=7, to=730, increment=7, textvariable=days_var, width=6).pack(side="left", padx=5)
@@ -427,7 +447,7 @@ class PaperAgentGUI:
         self._refresh_discovery_controls()
         subscription = self._selected_subscription()
         if not subscription:
-            self.discovery_status.configure(text="请先设置关注标签、期刊或会议")
+            self.discovery_status.configure(text="请选择热门方向，或设置自定义订阅")
             return
         cached = self.discovery_store.load_cached(subscription, self.discovery_sort_var.get())
         if cached is not None:
@@ -499,6 +519,8 @@ class PaperAgentGUI:
         for item in self.discovery_tree.get_children():
             self.discovery_tree.delete(item)
         self.discovery_papers = {}
+        if hasattr(self, "discovery_results_frame"):
+            self.discovery_results_frame.configure(text=f"推荐结果（{len(papers)} 篇）")
         target = self._selected_discovery_library()
         normalize_doi = lambda value: re.sub(r"^https?://(?:dx\.)?doi\.org/", "", value, flags=re.I).casefold()
         existing_dois = {normalize_doi(record.doi) for record in target.records() if record.doi} if target else set()
@@ -507,7 +529,7 @@ class PaperAgentGUI:
             iid = hashlib.sha256(paper.paper_key.encode("utf-8")).hexdigest()[:20]
             self.discovery_papers[iid] = paper
             imported = (paper.doi and normalize_doi(paper.doi) in existing_dois) or paper.title.casefold() in existing_titles
-            access = "已在库" if imported else ("可加入" if paper.downloadable else "仅元数据")
+            access = "已在库" if imported else ("可尝试加入" if paper.downloadable else "仅元数据")
             self.discovery_tree.insert("", "end", iid=iid, values=(
                 paper.title, paper.publication_date or paper.year or "—", paper.venue or "—",
                 paper.cited_by_count, access,
@@ -545,7 +567,9 @@ class PaperAgentGUI:
             f"{paper.title}\n\n作者：{authors}\n发表：{paper.publication_date or paper.year or '未提供'}"
             f"    期刊/会议：{paper.venue or '未提供'}    OpenAlex 引用：{paper.cited_by_count}\n"
             f"推荐依据：主题相关度 {paper.relevance_score:.2f} · 新近程度 {paper.freshness_score:.2f} · "
-            f"引用得分 {paper.citation_score:.2f}\nDOI：{paper.doi or '未提供'}\n\n"
+            f"引用得分 {paper.citation_score:.2f}\n网页状态："
+            f"{'已验证可访问' if paper.link_verified else '外部页面失效，查看时将打开 OpenAlex 记录'}\n"
+            f"DOI：{paper.doi or '未提供'}\n\n"
             f"摘要：{paper.abstract or 'OpenAlex 未提供摘要。'}"
         )
 
@@ -554,7 +578,7 @@ class PaperAgentGUI:
         if not paper:
             messagebox.showinfo("请选择论文", "请先在推荐列表中选择一篇论文。")
             return
-        url = paper.public_url or paper.openalex_id or (f"https://doi.org/{paper.doi}" if paper.doi else "")
+        url = paper.landing_url or paper.openalex_id
         if not url:
             messagebox.showinfo("没有公开网址", "这条记录没有可打开的公开地址。")
             return
@@ -564,7 +588,7 @@ class PaperAgentGUI:
         paper = self._selected_discovery_paper()
         if not paper:
             return
-        url = paper.public_url or paper.openalex_id or (f"https://doi.org/{paper.doi}" if paper.doi else "")
+        url = paper.landing_url or paper.openalex_id
         self.root.clipboard_clear()
         self.root.clipboard_append(f"{paper.title}\n{url}".strip())
         self.discovery_status.configure(text="标题和链接已复制")
@@ -744,12 +768,13 @@ class PaperAgentGUI:
         self.help_text.insert(
             "1.0",
             "使用顺序\n\n"
-            "1. 点击“新建论文库”，每个课题建议使用一个独立论文库。\n"
-            "2. 在“论文导入”页粘贴本地文件夹地址，或点击“浏览选择”。\n"
-            "3. 也可以粘贴公开 PDF 或论文网页网址，程序会下载并缓存公开 PDF。\n"
-            "4. 可点击“建立/更新向量索引”，首次下载公开多语言 Embedding 模型，之后使用 BM25+向量混合检索。\n"
-            "5. 点击右上角“模型设置”，可直接选择 DeepSeek、Kimi、千问、智谱等预设。\n"
-            "6. 进入“与 Agent 对话”，直接描述任务。\n\n"
+            "1. 首次打开停留在“首页”；可选择热门方向，或设置自定义标签、期刊和会议，每次推荐 2–10 篇。\n"
+            "2. 进入“我的论文库”，点击“新建论文库”；每个课题建议使用一个独立论文库。\n"
+            "3. 在论文库内的“论文导入”页粘贴本地文件夹地址，或点击“浏览选择”。\n"
+            "4. 也可以从首页选择推荐论文和目标论文库，下载仍可访问的公开全文。\n"
+            "5. 可点击“建立/更新向量索引”，首次下载公开多语言 Embedding 模型，之后使用 BM25+向量混合检索。\n"
+            "6. 点击右上角“模型设置”，可直接选择 DeepSeek、Kimi、千问、智谱等预设。\n"
+            "7. 进入论文库内的“与 Agent 对话”，直接描述任务。\n\n"
             "数据位置\n\n"
             f"所有论文库保存在：{LIBRARIES_ROOT}\n"
             "每个论文库独立包含元数据、索引、网页下载缓存和对话记录。\n"
@@ -826,6 +851,7 @@ class PaperAgentGUI:
             messagebox.showerror("创建失败", str(exc))
             return
         self._refresh_libraries(library.info.library_id)
+        self.main_notebook.select(self.library_hub_tab)
         self.notebook.select(self.import_tab)
 
     def _select_library(self, _event=None) -> None:
@@ -1242,6 +1268,7 @@ class PaperAgentGUI:
             self._save_session(library, history, plan, result.steps)
             self._refresh_papers()
             if plan.tool == "create_presentation":
+                self.main_notebook.select(self.library_hub_tab)
                 self.notebook.select(self.ppt_tab)
 
         self._set_chat_progress(2, "任务已提交")

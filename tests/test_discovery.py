@@ -11,6 +11,7 @@ from paper_data_agent.discovery import (
     DiscoveryService, DiscoveryStore, DiscoverySubscription,
     SORT_CITATIONS, SORT_COMBINED, SORT_NEWEST,
 )
+from paper_data_agent.web_sources import PublicURLStatus
 
 
 class DiscoveryTests(unittest.TestCase):
@@ -45,6 +46,7 @@ class DiscoveryTests(unittest.TestCase):
         service = DiscoveryService(Path("output"))
         papers = self._papers()
         service.adapters.online_search = lambda *args, **kwargs: AdapterResult("online_search", "", [], papers)
+        service.url_probe = lambda url: PublicURLStatus(True, 200, url)
         return service
 
     def test_sort_modes_and_venue_filter(self):
@@ -61,6 +63,7 @@ class DiscoveryTests(unittest.TestCase):
         papers[0]["journal"] = "Advances in Neural Information Processing Systems"
         service = DiscoveryService(Path("output"))
         service.adapters.online_search = lambda *args, **kwargs: AdapterResult("online_search", "", [], papers)
+        service.url_probe = lambda url: PublicURLStatus(True, 200, url)
         result = service.recommend(DiscoverySubscription("Agents", ["AI agent"], ["NeurIPS"], 3, 90))
         self.assertIn("Fresh Agent Paper", [item.title for item in result])
 
@@ -70,9 +73,21 @@ class DiscoveryTests(unittest.TestCase):
         service.adapters.online_search = lambda query, **kwargs: (
             calls.append((query, kwargs.get("queries"))) or AdapterResult("online_search", "", [], self._papers())
         )
+        service.url_probe = lambda url: PublicURLStatus(True, 200, url)
         service.recommend(DiscoverySubscription("Agents", ["AI agent", "tool use"], ["NeurIPS"], 3, 90))
         flattened = [*(calls[0][1] or []), calls[0][0]]
         self.assertTrue(any("AI agent NeurIPS" == item for item in flattened))
+
+    def test_common_chinese_topic_adds_english_openalex_query(self):
+        service = DiscoveryService(Path("output"))
+        calls = []
+        service.adapters.online_search = lambda query, **kwargs: (
+            calls.append((query, kwargs.get("queries"))) or AdapterResult("online_search", "", [], self._papers())
+        )
+        service.url_probe = lambda url: PublicURLStatus(True, 200, url)
+        service.recommend(DiscoverySubscription("多模态", ["多模态学习"], [], 3, 90))
+        flattened = [*(calls[0][1] or []), calls[0][0]]
+        self.assertIn("multimodal learning", flattened)
 
     def test_combined_scores_are_explainable_and_urls_survive(self):
         papers = self._service().recommend(DiscoverySubscription("Agents", ["AI agent"], [], 5, 90), SORT_COMBINED)
@@ -86,7 +101,7 @@ class DiscoveryTests(unittest.TestCase):
             root = Path(folder)
             store = DiscoveryStore(root / "subscriptions.json", root / "cache.json")
             subscription = DiscoverySubscription.from_form("Bio", "virtual cell，protein", "Nature", 8, 3)
-            self.assertEqual(subscription.count, 5)
+            self.assertEqual(subscription.count, 8)
             self.assertEqual(subscription.recency_days, 7)
             store.save_subscriptions([subscription])
             loaded = store.load_subscriptions()
@@ -95,6 +110,20 @@ class DiscoveryTests(unittest.TestCase):
             store.save_cached(subscription, SORT_COMBINED, papers)
             self.assertEqual([item.title for item in store.load_cached(subscription, SORT_COMBINED) or []],
                              [item.title for item in papers])
+
+    def test_count_is_clamped_to_two_through_ten(self):
+        self.assertEqual(DiscoverySubscription.from_form("a", "x", "", 1, 30).count, 2)
+        self.assertEqual(DiscoverySubscription.from_form("b", "x", "", 99, 30).count, 10)
+
+    def test_dead_external_link_falls_back_to_openalex_and_ranks_after_live_link(self):
+        service = self._service()
+        service.url_probe = lambda url: PublicURLStatus("fresh" in url, 200 if "fresh" in url else 410, url)
+        papers = service.recommend(DiscoverySubscription("Agents", ["AI agent"], [], 3, 90), SORT_COMBINED)
+        self.assertEqual(papers[0].title, "Fresh Agent Paper")
+        dead = next(item for item in papers if item.title == "Established Agent Paper")
+        self.assertFalse(dead.link_verified)
+        self.assertEqual(dead.landing_url, dead.openalex_id)
+        self.assertFalse(dead.public_urls)
 
 
 if __name__ == "__main__":

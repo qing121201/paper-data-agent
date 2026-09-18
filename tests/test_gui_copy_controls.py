@@ -50,6 +50,24 @@ class GuiCopyControlTests(unittest.TestCase):
         self.assertEqual(cell.get("1.0", "end-1c"), "Result A")
         self.assertEqual(str(cell.cget("state")), "disabled")
 
+    def test_home_and_library_are_separate_top_level_sections(self) -> None:
+        top_tabs = [self.gui.main_notebook.tab(index, "text")
+                    for index in range(self.gui.main_notebook.index("end"))]
+        library_tabs = [self.gui.notebook.tab(index, "text")
+                        for index in range(self.gui.notebook.index("end"))]
+        self.assertEqual(top_tabs, ["首页", "我的论文库", "使用说明"])
+        self.assertEqual(library_tabs, ["论文导入", "与 Agent 对话", "PPT 预览与修改"])
+        self.assertEqual(self.gui.main_notebook.select(), str(self.gui.home_tab))
+
+    def test_home_exposes_common_research_topics(self) -> None:
+        def descendants(widget):
+            for child in widget.winfo_children():
+                yield child
+                yield from descendants(child)
+        texts = {str(widget.cget("text")) for widget in descendants(self.gui.home_tab)
+                 if "text" in widget.keys()}
+        self.assertTrue({"AI Agent", "大语言模型", "多模态学习", "虚拟细胞", "具身智能"} <= texts)
+
 
 if __name__ == "__main__":
     unittest.main()

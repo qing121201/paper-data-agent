@@ -285,6 +285,11 @@ def search(query: str | None = None, limit: int = 10, year_from: int | None = No
             # OpenAlex returns source=null for repository deposits / some preprints,
             # so guard with `or {}` instead of relying on .get's default.
             "journal": ((work.get("primary_location") or {}).get("source") or {}).get("display_name", ""),
+            "landing_url": ((work.get("primary_location") or {}).get("landing_page_url")
+                            or (work.get("best_oa_location") or {}).get("landing_page_url")
+                            or (f"https://doi.org/{doi}" if doi else work.get("id", ""))),
+            "work_type": work.get("type", ""),
+            "is_retracted": bool(work.get("is_retracted")),
             # Local integration keeps the complete OpenAlex abstract so the
             # reading report does not silently stop at an arbitrary character.
             "abstract": abstract if abstract else "",
