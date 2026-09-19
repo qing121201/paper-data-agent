@@ -4,11 +4,13 @@
 
 | 路径 | 用途 |
 |---|---|
-| `paper_data_agent/` | Agent 主程序：GUI、论文库、索引、阅读、LLM、工具和工作流 |
+| `paper_data_agent/` | 产品源码：桌面 UI、论文库、检索、阅读、LLM、工具和工作流 |
+| `paper_data_agent/ui/` | 桌面端界面模块；目前已独立出主题系统，首页、论文库页和对话页按路线图继续迁移 |
 | `tests/` | 自动回归测试，覆盖检索、推荐、导入、规划、全文阅读、PPT、图像与 GUI 关键逻辑 |
 | `benchmarks/` | 10 条人工标注的检索查询，用来比较文件名基线和 BM25，不是训练集 |
 | `config/README.md` | 本机 UI 配置格式说明；真正的 `config/ui.json` 不提交 |
 | `docs/` | 架构、安装、Skill、安全边界和未来扩展说明 |
+| `docs/decisions/` | 重要架构选择及其理由；用于避免后续 AI 反复推翻已确认方案 |
 | `scripts/` | Windows 调试、PPT/导图等受控辅助脚本 |
 | `third_party/` | 固定版本的第三方 Skill 资料、许可证和来源记录 |
 | `libraries/README.md` | 论文库格式说明；真实论文和索引不提交 |
@@ -36,3 +38,12 @@
 `benchmarks/retrieval_queries.json` 的每条记录包含一个查询和若干 `gold_title_contains` 标题片段。例如查询 “Agent Computer Interface、编辑文件命令” 时，把标题含 “SWE-agent” 的论文标作合理命中。评测只检查返回标题是否包含这些人工标注片段，并计算 Hit@1、Hit@K 和 MRR。
 
 这不是给某个问题预先写死回答，也不会在正常对话中强制返回 SWE-agent；它只是开发者为了检查检索器有没有退化而建立的小型测试集。它不能证明综述写得好，也不能代替真实用户问题评测。
+
+## 文件应该放在哪里
+
+- 能被多个页面复用的产品逻辑放在 `paper_data_agent/` 的领域模块，不放进按钮回调。
+- 只负责布局、控件和用户交互的代码放在 `paper_data_agent/ui/`。
+- 对外部模型、OpenAlex、PowerPoint 或脚本的调用放在基础设施/工具适配层，不让业务层直接拼命令。
+- 回归测试按能力放在 `tests/test_<能力>.py`；人工检索基准只放 `benchmarks/`。
+- 用户论文、密钥、缓存和生成物属于运行时数据，不因为“整理目录”而移动到源码或提交 Git。
+- 科研实践报告属于独立交付物，保留在 `科研实践报告/`，不与产品源码混放。

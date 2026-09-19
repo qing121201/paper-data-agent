@@ -27,6 +27,14 @@
 
 完整安装方法、可选系统依赖和测试命令见 [docs/INSTALLATION.md](docs/INSTALLATION.md)。目录用途和哪些内容不会提交见 [docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md)。
 
+如果要继续开发这个产品，请先阅读：
+
+- [产品定义](docs/PRODUCT.md)：这个产品解决什么问题、当前做什么和暂时不做什么。
+- [系统架构](docs/ARCHITECTURE.md)：一次用户任务如何穿过界面、论文库、检索、Agent 和生成工具。
+- [模块契约](docs/MODULE_CONTRACTS.md)：模块之间允许怎样依赖，避免代码重新混在一起。
+- [AI 开发任务分工](docs/AI_WORKSTREAMS.md)：六个长期任务分别负责哪些产品域和文件。
+- [重构路线图](docs/REFACTORING_ROADMAP.md)：当前结构、目标结构和分阶段迁移顺序。
+
 ## 快速运行
 
 ### 最简单的方式（推荐）

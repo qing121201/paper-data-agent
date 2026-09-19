@@ -17,7 +17,8 @@
 
 | 文件 | 职责 |
 |---|---|
-| `gui.py` | Windows 图形窗口、论文库切换、导入状态、模型设置和聊天交互 |
+| `gui.py` | Windows 主窗口组装、论文库切换、导入、模型设置和聊天交互；后续页面继续从这里小步拆出 |
+| `ui/theme.py` | 皮肤配色、Tk/ttk 样式和主题持久化；不包含论文或 Agent 业务逻辑 |
 | `library.py` | 独立论文库目录、元数据、去重、索引更新和来源管理 |
 | `discovery.py` | 首页订阅、OpenAlex 候选聚合、时间/引用/相关性排序与当天缓存 |
 | `web_sources.py` | 公开 URL/失效页面校验、HTML 中 PDF 发现、下载限制和缓存 |
@@ -67,3 +68,9 @@
 ## 当前没有的基础设施
 
 当前版本没有自训练语言模型、独立向量数据库、自训练 Embedding、REST 服务或 SQL/云数据库。检索默认使用本地 BM25，可由用户建立 `multilingual-e5-small` 本地向量 sidecar，与 BM25 通过倒数排名融合；论文库、正文索引和会话仍使用 JSON/NPZ 文件。生成式模型通过 OpenAI 兼容 HTTP 接口调用。可选扩展及其成本见 [ARCHITECTURE_OPTIONS.md](ARCHITECTURE_OPTIONS.md)。
+
+## 产品化架构原则
+
+当前选择是“模块化桌面单体”：用户仍只启动一个桌面程序，但源码按产品能力划分模块。这样既不引入服务器、账号系统和部署成本，也能让界面、论文库、Agent、在线推荐和 PPT 分别演进。
+
+依赖方向统一为：`UI -> 应用工作流 -> 领域能力 -> 基础设施`。例如首页可以调用论文发现服务，但论文发现服务不能反向导入 Tk 界面；Agent 可以通过工具接口读取论文库，但论文库不能依赖 Agent 的提示词。详细约束见 [MODULE_CONTRACTS.md](MODULE_CONTRACTS.md)，分阶段拆分顺序见 [REFACTORING_ROADMAP.md](REFACTORING_ROADMAP.md)。
