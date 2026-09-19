@@ -72,7 +72,7 @@ class PaperAgentGUI:
         self.root = root
         self.root.title("论文 Data Agent")
         self.root.geometry("1180x860")
-        self.root.minsize(960, 720)
+        self.root.minsize(960, 600)
         self.manager = LibraryManager(LIBRARIES_ROOT)
         self.catalog = SkillCatalog()
         self.current_library: PaperLibrary | None = None
@@ -99,7 +99,8 @@ class PaperAgentGUI:
         self._style_text_widgets()
         self._refresh_libraries()
         self._refresh_api_status()
-        self.root.after(250, self._load_discovery_home)
+        self._discovery_home_after_id = self.root.after(250, self._load_discovery_home)
+        self.root.bind("<Destroy>", self._cancel_pending_home_load, add="+")
 
     def _configure_style(self) -> None:
         self.style = ttk.Style()
@@ -113,6 +114,8 @@ class PaperAgentGUI:
         target = "vista" if palette.get("native") and "vista" in self.style.theme_names() else "clam"
         self.style.theme_use(target)
         self.root.configure(background=palette["bg"])
+        if hasattr(self, "home_canvas"):
+            self.home_canvas.configure(background=palette["surface"])
         self.style.configure(".", font=("Microsoft YaHei UI", 9), background=palette["bg"], foreground=palette["text"])
         self.style.configure("TFrame", background=palette["surface"])
         self.style.configure("Header.TFrame", background=palette["surface"])
@@ -200,27 +203,30 @@ class PaperAgentGUI:
         self._apply_theme(self.theme_var.get())
 
     def _build_header(self) -> None:
-        header = ttk.Frame(self.root, padding=(22, 17, 22, 14), style="Header.TFrame")
-        header.pack(fill="x")
-        ttk.Label(header, text="论文 Data Agent", style="Title.TLabel").grid(row=0, column=0, sticky="w")
+        self.header = ttk.Frame(self.root, padding=(22, 17, 22, 14), style="Header.TFrame")
+        self.header.pack(fill="x")
+        ttk.Label(self.header, text="论文 Data Agent", style="Title.TLabel").grid(row=0, column=0, sticky="w")
         ttk.Label(
-            header,
+            self.header,
             text="导入任意本地论文或公开网址，然后直接向 Agent 提问",
             style="Subtitle.TLabel",
         ).grid(row=1, column=0, sticky="w", pady=(3, 0))
-        theme_box = ttk.Frame(header, style="Header.TFrame")
-        theme_box.grid(row=0, column=1, rowspan=2, padx=(12, 20))
+        self.header_controls = ttk.Frame(self.header, style="Header.TFrame")
+        theme_box = ttk.Frame(self.header_controls, style="Header.TFrame")
+        theme_box.pack(side="left", padx=(0, 20))
         ttk.Label(theme_box, text="皮肤", style="Header.TLabel").pack(side="left", padx=(0, 6))
         self.theme_var = tk.StringVar(value=self.theme_name)
         theme_combo = ttk.Combobox(theme_box, textvariable=self.theme_var, state="readonly", values=tuple(THEMES), width=10)
         theme_combo.pack(side="left")
         theme_combo.bind("<<ComboboxSelected>>", self._theme_changed)
-        self.api_status = ttk.Label(header, text="", style="Warning.TLabel")
-        self.api_status.grid(row=0, column=2, rowspan=2, sticky="e")
-        ttk.Button(header, text="模型设置", command=self._open_api_dialog, style="Accent.TButton").grid(
-            row=0, column=3, rowspan=2, padx=(12, 0)
+        self.api_status = ttk.Label(self.header_controls, text="", style="Warning.TLabel")
+        self.api_status.pack(side="left")
+        self.model_settings_button = ttk.Button(
+            self.header_controls, text="模型设置", command=self._open_api_dialog, style="Accent.TButton",
         )
-        header.columnconfigure(0, weight=1)
+        self.model_settings_button.pack(side="left", padx=(12, 0))
+        self.header_controls.grid(row=2, column=0, columnspan=2, sticky="e", pady=(10, 0))
+        self.header.columnconfigure(0, weight=1)
 
     def _build_library_bar(self, parent: ttk.Frame) -> None:
         bar = ttk.Frame(parent, padding=(0, 0, 0, 10))
@@ -261,14 +267,29 @@ class PaperAgentGUI:
         self._build_help_tab()
 
     def _build_home_tab(self) -> None:
-        heading = ttk.Frame(self.home_tab)
+        self.home_canvas = tk.Canvas(self.home_tab, highlightthickness=0, borderwidth=0)
+        self.home_scrollbar = ttk.Scrollbar(
+            self.home_tab, orient="vertical", command=self.home_canvas.yview,
+        )
+        self.home_canvas.configure(yscrollcommand=self.home_scrollbar.set)
+        self.home_scrollbar.pack(side="right", fill="y")
+        self.home_canvas.pack(side="left", fill="both", expand=True)
+        self.home_content = ttk.Frame(self.home_canvas)
+        self._home_canvas_window = self.home_canvas.create_window(
+            (0, 0), window=self.home_content, anchor="nw",
+        )
+        self.home_content.bind("<Configure>", self._sync_home_scroll_region)
+        self.home_canvas.bind("<Configure>", self._resize_home_content)
+        self.root.bind_all("<MouseWheel>", self._scroll_home_from_pointer, add="+")
+
+        heading = ttk.Frame(self.home_content)
         heading.pack(fill="x", pady=(0, 10))
         ttk.Label(heading, text="论文发现", style="Heading.TLabel").pack(side="left")
         ttk.Label(heading, text="每天按你的研究方向发现新论文；引用数来自 OpenAlex。", style="Muted.TLabel").pack(side="left", padx=(10, 0))
         self.discovery_status = ttk.Label(heading, text="等待设置订阅", style="Muted.TLabel")
         self.discovery_status.pack(side="right")
 
-        quick = ttk.LabelFrame(self.home_tab, text="热门方向（点击即切换并刷新）", padding=8)
+        quick = ttk.LabelFrame(self.home_content, text="热门方向（点击即切换并刷新）", padding=8)
         quick.pack(fill="x", pady=(0, 10))
         for index, topic in enumerate(("AI Agent", "大语言模型", "多模态学习", "计算机视觉",
                                        "自然语言处理", "虚拟细胞", "脑科学与 fMRI", "具身智能")):
@@ -277,7 +298,7 @@ class PaperAgentGUI:
         for column in range(3):
             quick.columnconfigure(column, weight=1)
 
-        filters = ttk.Frame(self.home_tab)
+        filters = ttk.Frame(self.home_content)
         filters.pack(fill="x", pady=(0, 10))
         ttk.Label(filters, text="订阅：").pack(side="left")
         self.discovery_subscription_var = tk.StringVar()
@@ -295,7 +316,7 @@ class PaperAgentGUI:
         ttk.Button(filters, text="刷新今日推荐", command=self._refresh_discovery,
                    style="Accent.TButton").pack(side="left", padx=(10, 0))
 
-        list_frame = ttk.LabelFrame(self.home_tab, text="推荐结果（每次 2–10 篇）", padding=8)
+        list_frame = ttk.LabelFrame(self.home_content, text="推荐结果（每次 2–10 篇）", padding=8)
         self.discovery_results_frame = list_frame
         list_frame.pack(fill="x")
         columns = ("title", "date", "venue", "citations", "access")
@@ -306,14 +327,21 @@ class PaperAgentGUI:
         ):
             self.discovery_tree.heading(key, text=label)
             self.discovery_tree.column(key, width=width, anchor="w" if key in {"title", "venue"} else "center")
-        scrollbar = ttk.Scrollbar(list_frame, orient="vertical", command=self.discovery_tree.yview)
-        self.discovery_tree.configure(yscrollcommand=scrollbar.set)
-        self.discovery_tree.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
+        vertical_scrollbar = ttk.Scrollbar(list_frame, orient="vertical", command=self.discovery_tree.yview)
+        horizontal_scrollbar = ttk.Scrollbar(list_frame, orient="horizontal", command=self.discovery_tree.xview)
+        self.discovery_tree.configure(
+            yscrollcommand=vertical_scrollbar.set,
+            xscrollcommand=horizontal_scrollbar.set,
+        )
+        self.discovery_tree.grid(row=0, column=0, sticky="nsew")
+        vertical_scrollbar.grid(row=0, column=1, sticky="ns")
+        horizontal_scrollbar.grid(row=1, column=0, sticky="ew")
+        list_frame.columnconfigure(0, weight=1)
+        list_frame.rowconfigure(0, weight=1)
         self.discovery_tree.bind("<<TreeviewSelect>>", self._show_discovery_detail)
         self.discovery_tree.bind("<Double-1>", lambda _event: self._open_discovery_source())
 
-        detail_frame = ttk.LabelFrame(self.home_tab, text="论文摘要与操作", padding=8)
+        detail_frame = ttk.LabelFrame(self.home_content, text="论文摘要与操作", padding=8)
         detail_frame.pack(fill="both", expand=True, pady=(10, 0))
         self.discovery_detail = ScrolledText(detail_frame, height=5, wrap="word", font=("Microsoft YaHei UI", 9), padx=8, pady=6)
         self.discovery_detail.insert("1.0", "选择一篇推荐论文，可查看摘要、来源和评分依据。")
@@ -323,14 +351,48 @@ class PaperAgentGUI:
         self.discovery_target_combo = ttk.Combobox(actions, state="readonly", width=25)
         self.discovery_target_combo.pack(fill="x", pady=(3, 8))
         self.discovery_target_combo.bind("<<ComboboxSelected>>", lambda _event: self._render_discovery_papers(list(self.discovery_papers.values())))
-        ttk.Button(actions, text="加入选中的论文", command=self._import_discovery_paper,
-                   style="Accent.TButton").pack(fill="x")
-        ttk.Button(actions, text="打开原文网页", command=self._open_discovery_source).pack(fill="x", pady=(7, 0))
-        ttk.Button(actions, text="复制标题和链接", command=self._copy_discovery_info).pack(fill="x", pady=(7, 0))
+        self.discovery_import_button = ttk.Button(
+            actions, text="加入选中的论文", command=self._import_discovery_paper, style="Accent.TButton",
+        )
+        self.discovery_open_button = ttk.Button(actions, text="打开原文网页", command=self._open_discovery_source)
+        self.discovery_copy_button = ttk.Button(actions, text="复制标题和链接", command=self._copy_discovery_info)
+        self.discovery_import_button.pack(fill="x")
+        self.discovery_open_button.pack(fill="x", pady=(7, 0))
+        self.discovery_copy_button.pack(fill="x", pady=(7, 0))
         self.discovery_detail.grid(row=0, column=0, sticky="nsew")
         actions.grid(row=0, column=1, sticky="ns", padx=(10, 0))
         detail_frame.columnconfigure(0, weight=1)
         detail_frame.rowconfigure(0, weight=1)
+
+    def _sync_home_scroll_region(self, _event=None) -> None:
+        if not hasattr(self, "home_canvas"):
+            return
+        self.home_canvas.update_idletasks()
+        requested_height = self.home_content.winfo_reqheight()
+        viewport_height = self.home_canvas.winfo_height()
+        content_height = max(requested_height, viewport_height)
+        self.home_canvas.itemconfigure(self._home_canvas_window, height=content_height)
+        self.home_canvas.configure(
+            scrollregion=(0, 0, self.home_canvas.winfo_width(), content_height),
+        )
+
+    def _resize_home_content(self, event) -> None:
+        self.home_canvas.itemconfigure(self._home_canvas_window, width=max(1, event.width))
+        self.root.after_idle(self._sync_home_scroll_region)
+
+    def _scroll_home_from_pointer(self, event):
+        if not hasattr(self, "home_canvas") or self.main_notebook.select() != str(self.home_tab):
+            return None
+        pointer_x, pointer_y = self.root.winfo_pointerxy()
+        left, top = self.home_canvas.winfo_rootx(), self.home_canvas.winfo_rooty()
+        if not (left <= pointer_x < left + self.home_canvas.winfo_width()
+                and top <= pointer_y < top + self.home_canvas.winfo_height()):
+            return None
+        if isinstance(event.widget, (tk.Text, ttk.Treeview, ttk.Combobox)):
+            return None
+        delta = -1 if event.delta > 0 else 1
+        self.home_canvas.yview_scroll(delta * 3, "units")
+        return "break"
 
     def _tab_changed(self, event=None):
         if hasattr(self, "ppt_panel") and self.notebook.select() == str(self.ppt_tab):
@@ -467,6 +529,7 @@ class PaperAgentGUI:
         body.columnconfigure(1, weight=1)
 
     def _load_discovery_home(self) -> None:
+        self._discovery_home_after_id = None
         self._refresh_discovery_controls()
         subscription = self._selected_subscription()
         if not subscription:
@@ -477,6 +540,17 @@ class PaperAgentGUI:
             self._render_discovery_papers(cached)
             self.discovery_status.configure(text=f"已显示今日缓存 · {len(cached)} 篇")
         self._refresh_discovery(silent=True)
+
+    def _cancel_pending_home_load(self, event=None) -> None:
+        if event is not None and event.widget is not self.root:
+            return
+        callback_id = getattr(self, "_discovery_home_after_id", None)
+        if callback_id:
+            try:
+                self.root.after_cancel(callback_id)
+            except tk.TclError:
+                pass
+            self._discovery_home_after_id = None
 
     def _discovery_subscription_changed(self, _event=None) -> None:
         subscription = self._selected_subscription()

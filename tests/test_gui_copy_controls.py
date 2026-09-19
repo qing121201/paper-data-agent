@@ -70,6 +70,33 @@ class GuiCopyControlTests(unittest.TestCase):
                  if "text" in widget.keys()}
         self.assertTrue({"AI Agent", "大语言模型", "多模态学习", "虚拟细胞", "具身智能"} <= texts)
 
+    def test_small_home_window_can_scroll_to_all_paper_actions(self) -> None:
+        self.root.geometry("960x600")
+        self.root.deiconify()
+        self.root.update()
+        buttons = (
+            self.gui.discovery_import_button,
+            self.gui.discovery_open_button,
+            self.gui.discovery_copy_button,
+        )
+        self.assertEqual(
+            [button.cget("text") for button in buttons],
+            ["加入选中的论文", "打开原文网页", "复制标题和链接"],
+        )
+        self.assertGreater(self.gui.home_content.winfo_reqheight(), self.gui.home_canvas.winfo_height())
+        self.gui.home_canvas.yview_moveto(1.0)
+        self.root.update_idletasks()
+        self.assertAlmostEqual(self.gui.home_canvas.yview()[1], 1.0, places=3)
+        action_bottom = max(
+            button.winfo_y() + button.winfo_height() + button.master.winfo_y()
+            for button in buttons
+        )
+        self.assertLessEqual(action_bottom, self.gui.home_content.winfo_height())
+        self.assertLessEqual(
+            self.gui.model_settings_button.winfo_rootx() + self.gui.model_settings_button.winfo_width(),
+            self.root.winfo_rootx() + self.root.winfo_width(),
+        )
+
     def test_quick_topic_switches_directly_without_opening_settings(self) -> None:
         topic = "测试快捷方向"
         with patch.object(self.gui.discovery_store, "save_subscriptions"), patch.object(
