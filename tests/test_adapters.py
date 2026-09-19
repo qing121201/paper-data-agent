@@ -1,6 +1,7 @@
 import unittest
 
-from paper_data_agent.adapters import normalize_mindmap_theme
+from paper_data_agent.adapters import AdapterResult, ResearchToolAdapters, normalize_mindmap_theme
+from paper_data_agent.tool_adapters.academic_search import AcademicSearchMixin
 
 
 class AdapterTests(unittest.TestCase):
@@ -12,6 +13,18 @@ class AdapterTests(unittest.TestCase):
 
     def test_supported_mindmap_theme_is_preserved(self) -> None:
         self.assertEqual(normalize_mindmap_theme("zen"), ("zen", False))
+
+    def test_online_search_is_supplied_by_separate_adapter_module(self) -> None:
+        self.assertTrue(issubclass(ResearchToolAdapters, AcademicSearchMixin))
+        self.assertNotIn("online_search", ResearchToolAdapters.__dict__)
+        self.assertIn("online_search", AcademicSearchMixin.__dict__)
+
+    def test_adapter_result_markdown_contract_is_unchanged(self) -> None:
+        result = AdapterResult("demo", "完成", ["result.md"], {"count": 1})
+        rendered = result.as_markdown()
+        self.assertIn("- `result.md`", rendered)
+        self.assertIn("```json", rendered)
+        self.assertIn('\"count\": 1', rendered)
 
 
 if __name__ == "__main__":
