@@ -25,9 +25,12 @@
 | `core.py` | PDF 抽取、文本分块、BM25/向量混合排序与受控工具注册 |
 | `embeddings.py` | 公开本地 Embedding 模型、向量 sidecar、指纹校验和自动回退 |
 | `reading.py` | 重建完整 PDF 页、识别完整摘要边界、制定不可拆分的证据预算计划 |
-| `adapters.py` | OpenAlex、科研绘图、PowerPoint 和思维导图执行适配器 |
+| `adapters.py` | 兼容门面：组合各类受控适配器，保持旧调用入口稳定 |
 | `tool_adapters/common.py` | 工具适配器共享结果类型、项目路径、安全子进程标志和文件命名 |
 | `tool_adapters/academic_search.py` | OpenAlex 多查询检索、Windows 网络回退和结果归一化；由兼容入口组合使用 |
+| `tool_adapters/mindmap.py` | Markdown 思维导图渲染和主题规范化 |
+| `tool_adapters/scientific_figure.py` | 从本地 CSV/TSV 生成 PNG/PDF 科研图及清单 |
+| `tool_adapters/presentation.py` | 可编辑 PPT 生成、图片复制和结构质量检查 |
 | `workflow.py` | 有界多步规划、工具执行、Skill 中间分析、检查点恢复和最终回答 |
 | `skills.py` | NatureSkills/ai4s-skills 发现、路径边界和声明式规则加载 |
 | `llm.py` | Responses 与 Chat Completions HTTP 客户端 |

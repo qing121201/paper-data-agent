@@ -2,6 +2,9 @@ import unittest
 
 from paper_data_agent.adapters import AdapterResult, ResearchToolAdapters, normalize_mindmap_theme
 from paper_data_agent.tool_adapters.academic_search import AcademicSearchMixin
+from paper_data_agent.tool_adapters.mindmap import MindmapAdapterMixin
+from paper_data_agent.tool_adapters.presentation import PresentationAdapterMixin
+from paper_data_agent.tool_adapters.scientific_figure import ScientificFigureAdapterMixin
 
 
 class AdapterTests(unittest.TestCase):
@@ -25,6 +28,17 @@ class AdapterTests(unittest.TestCase):
         self.assertIn("- `result.md`", rendered)
         self.assertIn("```json", rendered)
         self.assertIn('\"count\": 1', rendered)
+
+    def test_facade_composes_all_focused_adapters(self) -> None:
+        for component, method in (
+            (MindmapAdapterMixin, "create_mindmap"),
+            (ScientificFigureAdapterMixin, "create_scientific_figure"),
+            (PresentationAdapterMixin, "create_presentation"),
+        ):
+            with self.subTest(component=component.__name__):
+                self.assertTrue(issubclass(ResearchToolAdapters, component))
+                self.assertNotIn(method, ResearchToolAdapters.__dict__)
+                self.assertIn(method, component.__dict__)
 
 
 if __name__ == "__main__":
