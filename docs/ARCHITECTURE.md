@@ -26,7 +26,10 @@
 | `library.py` | 独立论文库目录、元数据、去重、索引更新和来源管理 |
 | `discovery.py` | 首页订阅、OpenAlex 候选聚合、时间/引用/相关性排序与当天缓存 |
 | `web_sources.py` | 公开 URL/失效页面校验、HTML 中 PDF 发现、下载限制和缓存 |
-| `core.py` | PDF 抽取、文本分块、BM25/向量混合排序与受控工具注册 |
+| `core.py` | 兼容门面：继续导出旧的索引、检索、论文工具 Agent 和评测名称 |
+| `retrieval/index.py` | PDF 文本抽取、分块、JSON 索引、BM25 和向量混合排序 |
+| `retrieval/evaluation.py` | Hit@K、MRR 等小型标注检索基准评测 |
+| `agent_tools/paper_agent.py` | 受控工具注册、论文证据读取、在线检索和生成工具入口 |
 | `embeddings.py` | 公开本地 Embedding 模型、向量 sidecar、指纹校验和自动回退 |
 | `reading.py` | 重建完整 PDF 页、识别完整摘要边界、制定不可拆分的证据预算计划 |
 | `adapters.py` | 兼容门面：组合各类受控适配器，保持旧调用入口稳定 |

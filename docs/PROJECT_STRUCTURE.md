@@ -7,6 +7,8 @@
 | `paper_data_agent/` | 产品源码：桌面 UI、论文库、检索、阅读、LLM、工具和工作流 |
 | `paper_data_agent/ui/` | 桌面端界面模块：主题、首页、论文库、Agent 对话和模型设置均已独立 |
 | `paper_data_agent/tool_adapters/` | 受控外部工具适配器：在线检索、图表、导图和 PPT 分模块实现；旧 `adapters.py` 仅作兼容门面 |
+| `paper_data_agent/retrieval/` | PDF/分块索引、BM25 与本地向量混合检索、检索评测 |
+| `paper_data_agent/agent_tools/` | 提供给科研工作流的白名单论文工具和参数校验 |
 | `tests/` | 自动回归测试，覆盖检索、推荐、导入、规划、全文阅读、PPT、图像与 GUI 关键逻辑 |
 | `benchmarks/` | 10 条人工标注的检索查询，用来比较文件名基线和 BM25，不是训练集 |
 | `config/README.md` | 本机 UI 配置格式说明；真正的 `config/ui.json` 不提交 |
