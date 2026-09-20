@@ -20,7 +20,7 @@
 
 职责：本地/网页论文导入、元数据、PDF 解析、全文分块、去重、BM25、Embedding、混合检索和阅读单元。
 
-主要所有权：`library.py`、`core.py` 的数据与检索部分、`embeddings.py`、`reading.py` 和相应测试。
+主要所有权：`library_domain/`、`library.py` 兼容入口、`core.py` 的数据与检索部分、`embeddings.py`、`reading.py` 和相应测试。
 
 ## 4. Agent 与科研工作流
 

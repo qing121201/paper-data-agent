@@ -206,7 +206,7 @@ class LibraryTests(unittest.TestCase):
             source.write_bytes(FAKE_PDF)
             library = LibraryManager(root / "libraries").create("课题")
             fake_index = PaperIndex([PaperChunk("paper", "paper", str(source), 1, 0, "virtual cell")])
-            with patch("paper_data_agent.library.PaperIndex.build_from_paths", return_value=fake_index):
+            with patch("paper_data_agent.library_domain.repository.PaperIndex.build_from_paths", return_value=fake_index):
                 self.assertEqual(library.import_folder(root).added, 1)
             record = library.records()[0]
             removed = library.remove_paper(record.paper_id)
@@ -227,7 +227,7 @@ class LibraryTests(unittest.TestCase):
             fake_index = PaperIndex(
                 [PaperChunk("paper", "paper", str(pdf), 1, 0, "software engineering agent")]
             )
-            with patch("paper_data_agent.library.PaperIndex.build_from_paths", return_value=fake_index):
+            with patch("paper_data_agent.library_domain.repository.PaperIndex.build_from_paths", return_value=fake_index):
                 result = first.import_folder(root / "source")
             self.assertEqual(result.added, 1)
             self.assertEqual(first.paper_count(), 1)
