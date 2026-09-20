@@ -19,6 +19,9 @@
 |---|---|
 | `gui.py` | Windows 主窗口组装、论文库切换、导入、模型设置和聊天交互；后续页面继续从这里小步拆出 |
 | `ui/theme.py` | 皮肤配色、Tk/ttk 样式和主题持久化；不包含论文或 Agent 业务逻辑 |
+| `ui/home_page.py` | 首页推荐布局、订阅交互、刷新状态和推荐论文入库操作 |
+| `ui/library_page.py` | 论文库切换、本地/网页导入、向量索引、论文列表及直接操作 |
+| `ui/chat_page.py` | Agent 对话页面、进度、会话恢复、Markdown/表格渲染和科研工作流调用 |
 | `library.py` | 独立论文库目录、元数据、去重、索引更新和来源管理 |
 | `discovery.py` | 首页订阅、OpenAlex 候选聚合、时间/引用/相关性排序与当天缓存 |
 | `web_sources.py` | 公开 URL/失效页面校验、HTML 中 PDF 发现、下载限制和缓存 |
