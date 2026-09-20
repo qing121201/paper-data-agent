@@ -6,6 +6,7 @@ from paper_data_agent.gui import PaperAgentGUI
 from paper_data_agent.ui.chat_page import ChatPageMixin
 from paper_data_agent.ui.home_page import HomePageMixin
 from paper_data_agent.ui.library_page import LibraryPageMixin
+from paper_data_agent.ui.model_settings import ModelSettingsMixin
 from paper_data_agent.ui.theme import THEMES, ThemeMixin
 
 
@@ -44,6 +45,11 @@ class UIArchitectureTests(unittest.TestCase):
             with self.subTest(method=method):
                 self.assertNotIn(method, PaperAgentGUI.__dict__)
                 self.assertIn(method, ChatPageMixin.__dict__)
+
+    def test_main_window_uses_separate_model_settings_component(self) -> None:
+        self.assertTrue(issubclass(PaperAgentGUI, ModelSettingsMixin))
+        self.assertNotIn("_open_api_dialog", PaperAgentGUI.__dict__)
+        self.assertIn("_open_api_dialog", ModelSettingsMixin.__dict__)
 
 
 if __name__ == "__main__":
