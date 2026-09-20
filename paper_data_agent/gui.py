@@ -16,7 +16,7 @@ from .ui.home_page import HomePageMixin
 from .ui.library_page import LibraryPageMixin
 from .ui.model_settings import ModelSettingsMixin
 from .ui.theme import THEMES, ThemeMixin
-from .presentation_ui import PresentationPanel
+from .ui.presentation_page import PresentationPanel
 from .discovery import (
     DiscoveryPaper, DiscoveryService, DiscoveryStore,
 )

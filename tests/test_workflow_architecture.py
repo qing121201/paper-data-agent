@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import unittest
 
 from paper_data_agent import workflow
@@ -24,6 +25,11 @@ class WorkflowArchitectureTests(unittest.TestCase):
         self.assertNotIn("_collect_steps", ResearchWorkflowAgent.__dict__)
         self.assertIn("plan", PlanningMixin.__dict__)
         self.assertIn("_collect_steps", ExecutionMixin.__dict__)
+
+    def test_presentation_branch_imports_visuals_from_parent_package(self) -> None:
+        source = inspect.getsource(ResearchWorkflowAgent.chat)
+        self.assertIn("from ..paper_visuals import", source)
+        self.assertNotIn("from .paper_visuals import", source)
 
 
 if __name__ == "__main__":

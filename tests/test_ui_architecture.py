@@ -7,6 +7,7 @@ from paper_data_agent.ui.chat_page import ChatPageMixin
 from paper_data_agent.ui.home_page import HomePageMixin
 from paper_data_agent.ui.library_page import LibraryPageMixin
 from paper_data_agent.ui.model_settings import ModelSettingsMixin
+from paper_data_agent.ui.presentation_page import PresentationPanel
 from paper_data_agent.ui.theme import THEMES, ThemeMixin
 
 
@@ -50,6 +51,12 @@ class UIArchitectureTests(unittest.TestCase):
         self.assertTrue(issubclass(PaperAgentGUI, ModelSettingsMixin))
         self.assertNotIn("_open_api_dialog", PaperAgentGUI.__dict__)
         self.assertIn("_open_api_dialog", ModelSettingsMixin.__dict__)
+
+    def test_presentation_panel_lives_with_other_ui_pages(self) -> None:
+        from paper_data_agent.presentation_ui import PresentationPanel as LegacyPanel
+
+        self.assertIs(LegacyPanel, PresentationPanel)
+        self.assertEqual(PresentationPanel.__module__, "paper_data_agent.ui.presentation_page")
 
 
 if __name__ == "__main__":

@@ -4,7 +4,7 @@
 
 ## 当前判断
 
-项目已经具备论文导入、检索、阅读规划、在线推荐、科研 Skill、图表和 PPT 等完整链路，但部分文件同时承担界面、流程和外部工具职责。最明显的热点是 `gui.py`、`workflow.py`、`core.py` 和 `adapters.py`。它们不是“不能运行”，而是继续增加功能时容易产生修改冲突和回归。
+项目已经具备论文导入、检索、阅读规划、在线推荐、科研 Skill、图表和 PPT 等完整链路。2026-09 的第一轮产品化重构已经把原先集中的 `gui.py`、`workflow.py`、`core.py`、`adapters.py`、`library.py`、`discovery.py` 和 PPT 图像代码拆成职责明确的包；这些旧文件现在只保留短小的兼容入口。后续新增功能应进入对应领域包，不再把逻辑堆回兼容文件。
 
 不采用一次性重写。每次只移动一个边界清楚的能力，保留原入口，随后执行编译、定向测试和全量测试。
 
@@ -18,20 +18,16 @@ paper_data_agent/
     library_page.py
     chat_page.py
     presentation_page.py
-  application/           # 面向用户用例的协调层
-    import_service.py
-    research_service.py
-    discovery_service.py
-    presentation_service.py
-  library/               # 论文库、来源记录和本地索引
+  library_domain/        # 论文库记录、单库操作、在线补位导入和多库管理
   retrieval/             # BM25、Embedding、混合排序和阅读计划
-  agent/                 # 规划器、工具循环、Skill 编排和检查点
-  discovery/             # 在线候选、排序、链接验证和导入
+  agent_tools/            # 工作流可调用的白名单论文工具
+  research_workflow/     # 规划、执行、Skill 编排、检查点和回答
+  discovery_domain/      # 订阅、缓存、候选评分和链接验证
   presentation/          # PPT 工作区、论文图提取和科研图
-  infrastructure/        # LLM、HTTP、文件和 PowerPoint 适配器
+  tool_adapters/          # OpenAlex、导图、科研图和 PowerPoint 适配器
 ```
 
-这是方向图，不代表这些目录已经全部存在。迁移期间保留兼容入口，例如现有 `core.py`、`workflow.py` 和 `adapters.py`，避免启动脚本和测试同时失效。
+以上目录已经存在。`core.py`、`workflow.py`、`adapters.py`、`library.py`、`discovery.py`、`paper_visuals.py`、`presentation_workspace.py` 和 `presentation_ui.py` 继续作为兼容门面，避免旧启动命令、脚本和第三方调用同时失效。
 
 ## 六个长期 AI 开发任务
 
@@ -55,17 +51,23 @@ paper_data_agent/
 - 再依次迁移首页、论文库页、对话页和 PPT 页；每次只拆一个页面。
 - 为兼容入口增加导入测试，确保旧启动命令仍可用。
 
+状态：已完成。
+
 ### 第二阶段：应用服务
 
 - 把 GUI 回调中的导入、刷新、研究任务和导出流程移到应用服务。
 - 页面只收集输入、显示进度和结果，不直接拼接外部调用。
 - 统一错误类型和面向用户的短错误文案，详细诊断写日志。
 
+状态：部分完成。页面已经独立，研究、推荐和 PPT 流程已经进入领域服务；统一用户错误类型与日志仍作为后续产品化工作。
+
 ### 第三阶段：领域包和适配器
 
 - 将 `core.py` 拆为解析、BM25、向量和工具注册。
 - 将 `workflow.py` 拆为计划、执行、Skill 和检查点。
 - 将 `adapters.py` 拆为在线学术检索、科研绘图、导图和 PowerPoint；保留兼容 facade。
+
+状态：已完成，并额外完成论文库、在线推荐、PPT 资源和工作区拆分。
 
 ### 第四阶段：产品运行时数据
 

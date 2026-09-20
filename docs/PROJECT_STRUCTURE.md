@@ -5,11 +5,14 @@
 | 路径 | 用途 |
 |---|---|
 | `paper_data_agent/` | 产品源码：桌面 UI、论文库、检索、阅读、LLM、工具和工作流 |
-| `paper_data_agent/ui/` | 桌面端界面模块：主题、首页、论文库、Agent 对话和模型设置均已独立 |
+| `paper_data_agent/ui/` | 桌面端界面模块：主题、首页、论文库、Agent 对话、PPT 预览和模型设置均已独立 |
 | `paper_data_agent/tool_adapters/` | 受控外部工具适配器：在线检索、图表、导图和 PPT 分模块实现；旧 `adapters.py` 仅作兼容门面 |
 | `paper_data_agent/retrieval/` | PDF/分块索引、BM25 与本地向量混合检索、检索评测 |
+| `paper_data_agent/library_domain/` | 论文库数据契约、单库持久化、公开全文补位导入和多库管理 |
 | `paper_data_agent/agent_tools/` | 提供给科研工作流的白名单论文工具和参数校验 |
 | `paper_data_agent/research_workflow/` | LLM 规划循环、工具执行、工作流数据契约和用户文本规范化 |
+| `paper_data_agent/discovery_domain/` | 每日订阅、缓存、主题与会议评分、OpenAlex 推荐和链接验证 |
+| `paper_data_agent/presentation/` | PPT 图文规格、原文图提取与裁剪、受控科研图绘制 |
 | `tests/` | 自动回归测试，覆盖检索、推荐、导入、规划、全文阅读、PPT、图像与 GUI 关键逻辑 |
 | `benchmarks/` | 10 条人工标注的检索查询，用来比较文件名基线和 BM25，不是训练集 |
 | `config/README.md` | 本机 UI 配置格式说明；真正的 `config/ui.json` 不提交 |

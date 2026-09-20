@@ -23,6 +23,8 @@
 | `ui/library_page.py` | 论文库切换、本地/网页导入、向量索引、论文列表及直接操作 |
 | `ui/chat_page.py` | Agent 对话页面、进度、会话恢复、Markdown/表格渲染和科研工作流调用 |
 | `ui/model_settings.py` | 模型服务状态、API 配置、连接测试和本机 `.env` 保存交互 |
+| `ui/presentation_page.py` | PPT 版本选择、逐页预览和对话式单页修改交互 |
+| `presentation_ui.py` | PPT 页面旧导入路径的兼容门面 |
 | `library.py` | 兼容门面：继续导出论文库、管理器和数据记录的旧名称 |
 | `library_domain/models.py` | 论文库、论文、导入结果等稳定数据契约 |
 | `library_domain/repository.py` | 单个论文库的本地/网页导入、去重、索引和会话管理 |
@@ -46,6 +48,12 @@
 | `tool_adapters/mindmap.py` | Markdown 思维导图渲染和主题规范化 |
 | `tool_adapters/scientific_figure.py` | 从本地 CSV/TSV 生成 PNG/PDF 科研图及清单 |
 | `tool_adapters/presentation.py` | 可编辑 PPT 生成、图片复制和结构质量检查 |
+| `paper_visuals.py` | 原文图与自绘图旧导入路径的兼容门面 |
+| `presentation/models.py` | PPT 图文布局白名单与模型输出契约 |
+| `presentation/assets.py` | 原文图表页提取、安全裁剪、来源记录和图片解析 |
+| `presentation/drawings.py` | 仅按声明式规格绘制流程图、柱状图和折线图 |
+| `presentation/workspace.py` | 版本化页面规格、PowerPoint 预览和单页修改流程 |
+| `presentation_workspace.py` | PPT 工作区旧导入路径的兼容门面 |
 | `workflow.py` | 兼容门面：继续导出科研工作流入口、模型和文本辅助函数 |
 | `research_workflow/agent.py` | 组合规划与执行组件，负责最终回答和公开工作流入口 |
 | `research_workflow/planning.py` | 模型计划解析、下一步选择和检查点写入 |
