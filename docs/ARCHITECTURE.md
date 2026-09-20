@@ -38,7 +38,12 @@
 | `tool_adapters/mindmap.py` | Markdown 思维导图渲染和主题规范化 |
 | `tool_adapters/scientific_figure.py` | 从本地 CSV/TSV 生成 PNG/PDF 科研图及清单 |
 | `tool_adapters/presentation.py` | 可编辑 PPT 生成、图片复制和结构质量检查 |
-| `workflow.py` | 有界多步规划、工具执行、Skill 中间分析、检查点恢复和最终回答 |
+| `workflow.py` | 兼容门面：继续导出科研工作流入口、模型和文本辅助函数 |
+| `research_workflow/agent.py` | 组合规划与执行组件，负责最终回答和公开工作流入口 |
+| `research_workflow/planning.py` | 模型计划解析、下一步选择和检查点写入 |
+| `research_workflow/execution.py` | 白名单工具执行、Skill 中间分析和有界步骤循环 |
+| `research_workflow/models.py` | 计划、结果和进度回调的数据契约 |
+| `research_workflow/text.py` | Skill 路由、引用标签美化和阅读覆盖说明 |
 | `skills.py` | NatureSkills/ai4s-skills 发现、路径边界和声明式规则加载 |
 | `llm.py` | Responses 与 Chat Completions HTTP 客户端 |
 | `config.py` | 模型配置的读取、校验、进程应用与可选本机保存 |
