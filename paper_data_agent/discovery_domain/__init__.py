@@ -1,21 +1,16 @@
-"""Compatibility facade for daily paper discovery.
+"""Daily paper discovery domain models, persistence, and recommendation."""
 
-The implementation lives in ``discovery_domain`` so persistence, scoring, and
-external-link verification can evolve independently while old imports remain
-valid.
-"""
-
-from .discovery_domain import (
+from .models import (
     SORT_CITATIONS,
     SORT_COMBINED,
     SORT_MODES,
     SORT_NEWEST,
     SORT_RELEVANCE,
     DiscoveryPaper,
-    DiscoveryService,
-    DiscoveryStore,
     DiscoverySubscription,
 )
+from .service import DiscoveryService
+from .store import DiscoveryStore
 
 __all__ = [
     "DiscoveryPaper",

@@ -32,7 +32,7 @@
 
 职责：OpenAlex 查询、主题扩展、订阅、候选合并、时间/引用/相关性排序、外链验证和推荐入库接线。
 
-主要所有权：`discovery.py`、`web_sources.py` 的公开来源探测、在线搜索适配器和相应测试。
+主要所有权：`discovery_domain/`、`discovery.py` 兼容入口、`web_sources.py` 的公开来源探测、在线搜索适配器和相应测试。
 
 ## 6. PPT 与科研可视化
 

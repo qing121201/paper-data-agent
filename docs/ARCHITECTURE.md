@@ -28,7 +28,11 @@
 | `library_domain/repository.py` | 单个论文库的本地/网页导入、去重、索引和会话管理 |
 | `library_domain/online_import.py` | 扩大候选池、公开全文地址排序、持续补位导入 |
 | `library_domain/manager.py` | 多论文库创建、枚举和安全打开 |
-| `discovery.py` | 首页订阅、OpenAlex 候选聚合、时间/引用/相关性排序与当天缓存 |
+| `discovery.py` | 兼容门面：继续导出首页推荐的旧名称与排序常量 |
+| `discovery_domain/models.py` | 订阅、推荐论文和排序模式的数据契约 |
+| `discovery_domain/store.py` | 本地订阅持久化与按日期隔离的推荐缓存 |
+| `discovery_domain/scoring.py` | 主题扩展、会议别名、候选过滤和可解释评分 |
+| `discovery_domain/service.py` | OpenAlex 候选收集、排序、外链验证和最终选择 |
 | `web_sources.py` | 公开 URL/失效页面校验、HTML 中 PDF 发现、下载限制和缓存 |
 | `core.py` | 兼容门面：继续导出旧的索引、检索、论文工具 Agent 和评测名称 |
 | `retrieval/index.py` | PDF 文本抽取、分块、JSON 索引、BM25 和向量混合排序 |
