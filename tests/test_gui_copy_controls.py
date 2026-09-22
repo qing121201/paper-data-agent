@@ -61,6 +61,12 @@ class GuiCopyControlTests(unittest.TestCase):
         self.assertEqual(library_tabs, ["论文导入", "与 Agent 对话", "PPT 预览与修改"])
         self.assertEqual(self.gui.main_notebook.select(), str(self.gui.home_tab))
 
+    def test_help_uses_user_relative_library_location_guidance(self) -> None:
+        help_text = self.gui.help_text.get("1.0", "end-1c")
+        self.assertNotIn("C:\\Users\\Administrator", help_text)
+        self.assertNotIn("所有论文库保存在：", help_text)
+        self.assertIn("打开目录", help_text)
+
     def test_home_exposes_common_research_topics(self) -> None:
         def descendants(widget):
             for child in widget.winfo_children():
